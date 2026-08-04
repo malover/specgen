@@ -1,0 +1,608 @@
+{
+  "schemaVersion": 1,
+  "repository": "medium",
+  "strategy": "deterministic-stratified",
+  "seed": "specgen-phase1-v2",
+  "selectedFiles": [
+    "OAT.xml",
+    "entry/hvigorfile.js",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/actionComponent.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/bannerNotificationItem.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/generalItem.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/groupItem.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/iconListComponent.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/notificationItem.ets",
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/viewmodel/ViewModel.ts",
+    "features/screenlock/src/main/ets/com/ohos/model/accountsModel.ts",
+    "features/screenlock/src/main/ets/com/ohos/model/screenLockService.ts",
+    "features/screenlock/src/main/ets/com/ohos/view/component/accounts.ets",
+    "features/shortcutcomponent/src/main/ets/com/ohos/view/component/shortcut.ets",
+    "features/signalcomponent/src/main/ets/default/pages/signalIcon.ets",
+    "product/pc/src/main/ets/pages/customPassword.ets",
+    "product/pc/src/main/ets/pages/digitalPassword.ets",
+    "product/pc/src/main/ets/pages/index.ets",
+    "product/pc/src/main/ets/pages/slidescreenlock.ets",
+    "product/phone/src/main/ets/pages/index.ets",
+    "product/phone/src/main/ets/pages/slidescreenlock.ets"
+  ],
+  "reasons": {
+    "OAT.xml": [
+      "structural diversity",
+      "language stratum"
+    ],
+    "common/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "common/index.ts": [
+      "structural diversity"
+    ],
+    "common/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/CheckEmptyUtils.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/Constants.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/DateTimeCommon.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/Decorators.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/Log.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/LunarCalendar.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/ReadConfigUtil.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/ScreenLockCommon.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/ScreenLockManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/SingleInstanceHelper.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/StyleManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/SwitchUserManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/SysFaultLogger.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/TimeManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/Trace.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/WindowManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/abilitymanager/abilityManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/abilitymanager/bundleManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/abilitymanager/featureAbilityManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/abilitymanager/index.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/abilitymanager/notificationManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/commonEvent/CommonEventManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/commonEvent/index.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/event/EventBus.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/event/EventManager.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/event/EventUtil.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/event/index.ts": [
+      "entry/service/test path"
+    ],
+    "common/src/main/ets/default/index.ts": [
+      "entry/service/test path"
+    ],
+    "entry/hvigorfile.js": [
+      "entry/service/test path",
+      "language stratum"
+    ],
+    "entry/src/main/ets/Application/AbilityStage.ts": [
+      "entry/service/test path"
+    ],
+    "entry/src/main/ets/MainAbility/MainAbility.ts": [
+      "entry/service/test path"
+    ],
+    "entry/src/main/ets/pages/index.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/batterycomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/batterycomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/batteryModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/pages/batteryIcon.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/pages/batteryPic.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/batterycomponent/src/main/ets/default/pages/batterySoc.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/clockcomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/clockcomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/clockcomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/clockcomponent/src/main/ets/default/app.ets": [
+      "entry/service/test path"
+    ],
+    "features/clockcomponent/src/main/ets/default/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "features/clockcomponent/src/main/ets/default/pages/clockIcon.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/datetimecomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/datetimecomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/datetimecomponent/src/main/ets/com/ohos/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/datetimecomponent/src/main/ets/com/ohos/view/component/dateTime.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/datetimecomponent/src/main/ets/com/ohos/vm/dateTimeViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/datetimecomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/noticeitem/index.ets": [
+      "structural diversity"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/common/CommonUtil.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/common/ScrollbarManager.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/NotificationConfig.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/NotificationDistributionManager.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/NotificationManager.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/NotificationService.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/NotificationWindowManager.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/ParseDataUtil.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/model/rule/RuleController.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/NotificationListComponent.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/actionComponent.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/bannerNotificationItem.ets": [
+      "contains UI component",
+      "entry/service/test path",
+      "language stratum"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/basicItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/confirmDialog.ets": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/customItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/devicesDialog.ets": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/generalItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/groupItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/iconListComponent.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/longItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/multiItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/notificationItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/pictureItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/settingDialog.ets": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/view/item/titleItem.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/com/ohos/noticeItem/viewmodel/ViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/noticeitem/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/screenlock/index.ets": [
+      "structural diversity"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/data/userData.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/model/accountsModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/model/screenLockModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/model/screenLockService.ts": [
+      "entry/service/test path",
+      "language stratum"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/model/screenlockStyle.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/accounts.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/batterySoc.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/customPSD.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/digitalPSD.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/lockIcon.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/mixedPSD.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/numkeyBoard.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/view/component/statusBar.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/StatusBarVM.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/accountsViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/baseViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/batterySocViewModel.ets": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/customPSDViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/digitalPSDViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/lockIconViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/com/ohos/vm/mixedPSDViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/screenlock/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/shortcutcomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/shortcutcomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/shortcutcomponent/src/main/ets/com/ohos/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/shortcutcomponent/src/main/ets/com/ohos/view/component/shortcut.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/shortcutcomponent/src/main/ets/com/ohos/vm/shortcutViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/shortcutcomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/signalcomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/signalcomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/src/main/ets/default/app.ets": [
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/src/main/ets/default/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/src/main/ets/default/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/src/main/ets/default/pages/signalIcon.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/signalcomponent/src/main/ets/default/signalModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/wallpapercomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/wallpapercomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/wallpapercomponent/src/main/ets/com/ohos/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/wallpapercomponent/src/main/ets/com/ohos/view/component/wallpaper.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/wallpapercomponent/src/main/ets/com/ohos/vm/wallpaperViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "features/wallpapercomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/wificomponent/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "features/wificomponent/index.ets": [
+      "structural diversity"
+    ],
+    "features/wificomponent/src/main/ets/components/MainPage/MainPage.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/wificomponent/src/main/ets/default/app.ets": [
+      "entry/service/test path"
+    ],
+    "features/wificomponent/src/main/ets/default/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "features/wificomponent/src/main/ets/default/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "features/wificomponent/src/main/ets/default/pages/wifiIcon.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "features/wificomponent/src/main/ets/default/wifiModel.ts": [
+      "entry/service/test path"
+    ],
+    "hvigorfile.js": [
+      "structural diversity"
+    ],
+    "product/pc/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "product/pc/src/main/ets/Application/AbilityStage.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/ServiceExtAbility/ServiceExtAbility.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/common/StyleManager.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/customPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/customscreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/digitalPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/index.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/journalscreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/mixedPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/pages/slidescreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/vm/indexViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "product/pc/src/main/ets/vm/slideScreenLockViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/hvigorfile.js": [
+      "structural diversity"
+    ],
+    "product/phone/src/main/ets/AbilityStage.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/Application/AbilityStage.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/ServiceExtAbility/ServiceExtAbility.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/common/StyleConfiguration.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/common/StyleManager.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/common/constants.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/customPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/customscreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/digitalPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/index.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/journalscreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/mixedPassword.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/pages/slidescreenlock.ets": [
+      "contains UI component",
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/vm/indexViewModel.ts": [
+      "entry/service/test path"
+    ],
+    "product/phone/src/main/ets/vm/slideScreenLockViewModel.ts": [
+      "entry/service/test path"
+    ]
+  }
+}

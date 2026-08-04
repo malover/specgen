@@ -1,0 +1,33 @@
+{
+  "name": "arkts-indexing-spike",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "description": "Deterministic CodeGraph vs direct Tree-sitter ArkTS indexing evaluation",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "check": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
+    "spike": "tsx src/cli.ts",
+    "all": "tsx src/cli.ts all",
+    "init-ground-truth": "tsx src/cli.ts init-ground-truth",
+    "evaluate": "tsx src/cli.ts evaluate"
+  },
+  "dependencies": {
+    "@colbymchenry/codegraph": "1.5.0",
+    "commander": "^14.0.0",
+    "fast-glob": "^3.3.3",
+    "json5": "^2.2.3",
+    "web-tree-sitter": "^0.25.10",
+    "zod": "^4.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.8.0",
+    "vitest": "^3.2.0"
+  },
+  "engines": {
+    "node": ">=22.5 <25"
+  }
+}

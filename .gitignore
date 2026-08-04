@@ -1,0 +1,7 @@
+node_modules/
+dist/
+results/
+test-output/
+fixtures/repos/
+.env
+*.log

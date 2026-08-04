@@ -1,0 +1,24 @@
+{
+  "repositories": [
+    { "id": "small", "size": "small", "path": "D:/repos/arkts-small" },
+    { "id": "medium", "size": "medium", "path": "D:/repos/arkts-medium" },
+    { "id": "large", "size": "large", "path": "D:/repos/arkts-large" }
+  ],
+  "outputDirectory": "./results-v2",
+  "incremental": {
+    "trials": 3,
+    "timeoutMs": 10000
+  },
+  "sampling": {
+    "small": 0,
+    "medium": 20,
+    "large": 30,
+    "seed": "specgen-phase1-v2"
+  },
+  "acceptance": {
+    "fileCoverage": 0.95,
+    "entityRecall": 0.85,
+    "edgePrecision": 0.90,
+    "incrementalStalenessMs": 5000
+  }
+}
