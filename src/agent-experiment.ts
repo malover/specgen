@@ -15,7 +15,7 @@ const ProcessSchema = z.object({
 const VerificationSchema = ProcessSchema.extend({ purpose: z.enum(["build", "test", "architecture"]) });
 export const AgentExperimentConfigSchema = z.object({
   schema: z.literal("deveco.specgen-agent-experiment/v1"), model: z.string().min(1),
-  repetitions: z.number().int().min(1).default(3), outputDirectory: z.string().min(1),
+  repetitions: z.number().int().min(1).default(1), outputDirectory: z.string().min(1),
   agent: ProcessSchema,
   tasks: z.array(z.object({
     id: z.string().min(1), repository: z.string().min(1), prompt: z.string().min(1),
@@ -60,7 +60,7 @@ export function loadAgentExperiment(file: string): AgentExperimentConfig {
 }
 
 async function executeRun(config: AgentExperimentConfig, task: AgentExperimentConfig["tasks"][number], repetition: number, condition: AgentRun["condition"], output: string): Promise<AgentRun> {
-  const runId = `${task.id}-${condition}-${repetition}`; const runDirectory = path.join(output, runId); const workspace = path.join(runDirectory, "workspace");
+  const runId = `${task.id}-${condition}-${repetition}`; const runDirectoryName = safePathSegment(runId); const runDirectory = path.join(output, runDirectoryName); const workspace = path.join(runDirectory, "workspace");
   fs.rmSync(runDirectory, { recursive: true, force: true }); fs.mkdirSync(runDirectory, { recursive: true });
   copyRepository(task.repository, workspace); const before = fileHashes(workspace);
   const promptFile = path.join(runDirectory, "prompt.md"); fs.writeFileSync(promptFile, task.prompt);
@@ -93,7 +93,7 @@ async function executeRun(config: AgentExperimentConfig, task: AgentExperimentCo
     retrievedIds: metadata.retrievedIds ?? [], relevantIds: task.relevantIds,
     usedProjectSpec: condition === "baseline" ? false : metadata.usedProjectSpec
   });
-  writeJson(path.join(runDirectory, "run.json"), { ...result, model: config.model, usedProjectSpec: metadata.usedProjectSpec ?? null, agent: { exitCode: agent.code, timedOut: agent.timedOut }, verifications });
+  writeJson(path.join(runDirectory, "run.json"), { ...result, runDirectoryName, model: config.model, usedProjectSpec: metadata.usedProjectSpec ?? null, agent: { exitCode: agent.code, timedOut: agent.timedOut }, verifications });
   return result;
 }
 
@@ -101,7 +101,8 @@ async function runProcess(definition: z.infer<typeof ProcessSchema>, replacement
   const replace = (value: string) => value.replace(/\{(repository|prompt|promptFile|condition|spec|constraints|resultFile)\}/g, (_, name: string) => replacements[name] ?? "");
   const command = replace(definition.command); const args = definition.args.map(replace); let timedOut = false;
   return await new Promise((resolve, reject) => {
-    const child = spawn(command, args, { cwd, shell: false, env: { ...process.env, ...definition.env, ...extraEnv }, windowsHide: true });
+    const shell = process.platform === "win32" && /\.(?:bat|cmd)$/i.test(command);
+    const child = spawn(command, args, { cwd, shell, env: { ...process.env, ...definition.env, ...extraEnv }, windowsHide: true });
     let stdout = ""; let stderr = ""; child.stdout?.on("data", chunk => stdout += String(chunk)); child.stderr?.on("data", chunk => stderr += String(chunk));
     const timer = setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, definition.timeoutMs);
     child.on("error", error => { clearTimeout(timer); reject(error); });
@@ -121,3 +122,8 @@ function fileHashes(root: string): Map<string, string> {
   return result;
 }
 function changedFiles(before: Map<string, string>, after: Map<string, string>): number { return new Set([...before.keys(), ...after.keys()]).size - [...before.keys()].filter(file => after.get(file) === before.get(file)).length; }
+function safePathSegment(value: string): string {
+  const sanitized = value.replace(/[<>:"/\\|?*\x00-\x1F]/g, "-").replace(/[. ]+$/g, "").replace(/-+/g, "-");
+  if (!sanitized) throw new Error(`Run id cannot be represented as a filesystem path: ${value}`);
+  return sanitized;
+}
