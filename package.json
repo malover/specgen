@@ -14,7 +14,7 @@
       "import": "./dist/src/index.js"
     }
   },
-  "description": "Native TypeScript Project SPEC generation, architecture checking, and automated evaluation",
+  "description": "Native TypeScript Project SPEC generation, architecture checking, and deterministic evaluation",
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check": "tsc -p tsconfig.json --noEmit",
@@ -25,8 +25,6 @@
     "evaluate": "tsx src/cli.ts evaluate",
     "evaluate:quality": "tsx src/cli.ts evaluate-quality",
     "evaluate:full": "npm run build && node dist/src/cli.js evaluate-full",
-    "evaluate:agent": "tsx src/cli.ts evaluate-agent",
-    "agent:ab": "tsx src/cli.ts run-agent-ab",
     "init:architecture-eval": "tsx src/cli.ts init-architecture-eval",
     "project-spec": "tsx src/cli.ts project-spec",
     "query": "tsx src/cli.ts query"
@@ -36,7 +34,6 @@
     "commander": "^14.0.0",
     "fast-glob": "^3.3.3",
     "json5": "^2.2.3",
-    "undici": "^7.29.0",
     "web-tree-sitter": "^0.25.10",
     "zod": "^4.0.0"
   },
