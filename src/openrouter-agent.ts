@@ -10,10 +10,32 @@ const SpecSelectionSchema = z.object({
   relevantIds: z.array(z.string()).min(1).max(20),
   reasoning: z.string().max(1000)
 });
-const EditSchema = z.object({
-  edits: z.array(z.object({ path: z.string(), content: z.string() })).min(1).max(10),
+const PatchSchema = z.object({
+  patches: z.array(z.object({
+    path: z.string().min(1),
+    oldText: z.string().min(1),
+    newText: z.string()
+  })).min(1).max(20),
   summary: z.string().max(1000)
 });
+
+type ChatMessage = { role: string; content: string };
+interface CompletionAttemptLog {
+  attempt: number;
+  startedAt: string;
+  durationMs: number;
+  response?: { status: number; statusText: string; headers: Record<string, string>; body: string };
+  error?: string;
+}
+interface CompletionCallLog {
+  schema: "deveco.specgen-openrouter-call/v1";
+  call: string;
+  request: {
+    endpoint: string;
+    body: { model: string; messages: ChatMessage[]; temperature: number; max_tokens: number };
+  };
+  attempts: CompletionAttemptLog[];
+}
 
 const ignoredPaths = [
   "node_modules/**", "dist/**", "build/**", ".git/**", ".codegraph/**",
@@ -36,6 +58,7 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
   const files = repositoryTextFiles(workspace);
   if (!files.length) throw new Error("No text repository files are available to the agent.");
   const endpoint = `${(environment.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1").replace(/\/$/, "")}/chat/completions`;
+  const logDirectory = path.dirname(resultFile);
   if (environment.HTTPS_PROXY || environment.HTTP_PROXY) setGlobalDispatcher(new EnvHttpProxyAgent());
 
   let inputTokens = 0;
@@ -43,7 +66,7 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
   let retrievedIds: string[] = [];
   let selectedFiles: string[] = [];
   let contextCharacters = 0;
-  let editResult: z.infer<typeof EditSchema>;
+  let patchResult: z.infer<typeof PatchSchema>;
 
   if (condition === "baseline") {
     const repositoryDump = renderFileDump(
@@ -57,13 +80,13 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
     const edited = await completion(endpoint, apiKey, model, [
       {
         role: "system",
-        content: "You are a careful coding agent. You receive a full text dump of the repository and no Project SPEC. Return JSON only: {edits:[{path,content}],summary}. Each edit must contain the complete replacement content of an existing file from the dump. Preserve unrelated code and do not use Markdown fences."
+        content: patchInstructions("You receive a full text dump of the repository and no Project SPEC.")
       },
       { role: "user", content: `TASK:\n${prompt}\n\nFULL REPOSITORY DUMP:\n${repositoryDump}` }
-    ], Number(environment.OPENROUTER_AGENT_MAX_TOKENS ?? 12_000), environment);
+    ], Number(environment.OPENROUTER_AGENT_MAX_TOKENS ?? 12_000), environment, path.join(logDirectory, "openrouter-baseline-implementation.json"), "baseline-implementation");
     inputTokens += edited.usage.prompt;
     outputTokens += edited.usage.completion;
-    editResult = EditSchema.parse(parseJson(edited.content));
+    patchResult = PatchSchema.parse(parseJson(edited.content));
   } else {
     const projectSpec = spec!;
     const selectionIndex = JSON.stringify(specSelectionIndex(projectSpec));
@@ -73,7 +96,7 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
         content: "You are a Project SPEC retrieval planner. Select only the Project SPEC records needed to implement the task. Return JSON only: {relevantIds:string[], reasoning:string}. Use exact IDs from the supplied SPEC index. Prefer specific interface IDs and add a module ID only when module-level context is necessary. Do not request repository files; file evidence will be resolved from the selected SPEC records."
       },
       { role: "user", content: `TASK:\n${prompt}\n\nPROJECT SPEC SELECTION INDEX:\n${selectionIndex}` }
-    ], 2500, environment);
+    ], 2500, environment, path.join(logDirectory, "openrouter-project-spec-selection.json"), "project-spec-selection");
     inputTokens += planned.usage.prompt;
     outputTokens += planned.usage.completion;
 
@@ -94,19 +117,19 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
     const edited = await completion(endpoint, apiKey, model, [
       {
         role: "system",
-        content: "You are a careful coding agent. Implement the task using only the retrieved Project SPEC fragment and its selected source evidence. Return JSON only: {edits:[{path,content}],summary}. Each edit must contain the complete replacement content of an existing selected source file. Preserve unrelated code and do not use Markdown fences."
+        content: patchInstructions("Implement the task using only the retrieved Project SPEC fragment and its selected source evidence.")
       },
       {
         role: "user",
         content: `TASK:\n${prompt}\n\nRETRIEVED PROJECT SPEC FRAGMENT:\n${specFragment}\n\nSELECTED SOURCE EVIDENCE:\n${sourceContext}`
       }
-    ], Number(environment.OPENROUTER_AGENT_MAX_TOKENS ?? 12_000), environment);
+    ], Number(environment.OPENROUTER_AGENT_MAX_TOKENS ?? 12_000), environment, path.join(logDirectory, "openrouter-project-spec-implementation.json"), "project-spec-implementation");
     inputTokens += edited.usage.prompt;
     outputTokens += edited.usage.completion;
-    editResult = EditSchema.parse(parseJson(edited.content));
+    patchResult = PatchSchema.parse(parseJson(edited.content));
   }
 
-  applyEdits(workspace, selectedFiles, editResult);
+  applyPatches(workspace, selectedFiles, patchResult);
   writeJson(resultFile, {
     inputTokens,
     outputTokens,
@@ -116,36 +139,78 @@ export async function runOpenRouterAgent(environment: NodeJS.ProcessEnv = proces
     contextMode: condition === "baseline" ? "full-repository-dump" : "retrieved-project-spec",
     contextCharacters,
     selectedFiles,
-    summary: editResult.summary
+    patchesApplied: patchResult.patches.length,
+    summary: patchResult.summary
   });
 }
 
-async function completion(endpoint: string, apiKey: string, model: string, messages: Array<{ role: string; content: string }>, maxTokens: number, environment: NodeJS.ProcessEnv): Promise<{ content: string; usage: { prompt: number; completion: number } }> {
+async function completion(
+  endpoint: string,
+  apiKey: string,
+  model: string,
+  messages: ChatMessage[],
+  maxTokens: number,
+  environment: NodeJS.ProcessEnv,
+  logFile: string,
+  call: string
+): Promise<{ content: string; usage: { prompt: number; completion: number } }> {
+  const requestBody = { model, messages, temperature: 0, max_tokens: maxTokens };
+  const log: CompletionCallLog = {
+    schema: "deveco.specgen-openrouter-call/v1",
+    call,
+    request: { endpoint, body: requestBody },
+    attempts: []
+  };
   let lastError: unknown;
-  for (let attempt = 1; attempt <= 3; attempt++) try {
-    const response = await fetch(endpoint, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-Title": "SpecGen Agent Evaluation" },
-      body: JSON.stringify({ model, messages, temperature: 0, max_tokens: maxTokens }),
-      signal: AbortSignal.timeout(Number(environment.OPENROUTER_TIMEOUT_MS ?? 180_000))
-    });
-    const text = await response.text();
-    if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 1000)}`);
-    const body = JSON.parse(text);
-    const content = body?.choices?.[0]?.message?.content;
-    if (typeof content !== "string" || !content.trim()) throw new Error("Model returned an empty response.");
-    return {
-      content,
-      usage: {
-        prompt: Number(body.usage?.prompt_tokens ?? 0),
-        completion: Number(body.usage?.completion_tokens ?? 0)
-      }
-    };
-  } catch (error) {
-    lastError = error;
-    if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    const started = performance.now();
+    const startedAt = new Date().toISOString();
+    try {
+      const response = await fetch(endpoint, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json", "X-Title": "SpecGen Agent Evaluation" },
+        body: JSON.stringify(requestBody),
+        signal: AbortSignal.timeout(Number(environment.OPENROUTER_TIMEOUT_MS ?? 180_000))
+      });
+      const text = await response.text();
+      const attemptLog: CompletionAttemptLog = {
+        attempt,
+        startedAt,
+        durationMs: performance.now() - started,
+        response: {
+          status: response.status,
+          statusText: response.statusText,
+          headers: Object.fromEntries(response.headers.entries()),
+          body: text
+        }
+      };
+      log.attempts.push(attemptLog);
+      writeJson(logFile, log);
+      if (!response.ok) throw new Error(`HTTP ${response.status}: ${text.slice(0, 1000)}`);
+      const body = JSON.parse(text);
+      const content = body?.choices?.[0]?.message?.content;
+      if (typeof content !== "string" || !content.trim()) throw new Error("Model returned an empty response.");
+      return {
+        content,
+        usage: {
+          prompt: Number(body.usage?.prompt_tokens ?? 0),
+          completion: Number(body.usage?.completion_tokens ?? 0)
+        }
+      };
+    } catch (error) {
+      lastError = error;
+      const existing = log.attempts.find(item => item.attempt === attempt);
+      if (existing) existing.error = message(error);
+      else log.attempts.push({ attempt, startedAt, durationMs: performance.now() - started, error: message(error) });
+      writeJson(logFile, log);
+      if (attempt < 3) await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+    }
   }
   throw lastError;
+}
+
+function patchInstructions(context: string): string {
+  return `You are a careful coding agent. ${context} Return JSON only: {patches:[{path,oldText,newText}],summary}. Each oldText must be an exact, unique, non-empty excerpt from the supplied file and newText is its replacement. Use the smallest sufficient patches, preserve unrelated code, and do not use Markdown fences.`;
 }
 
 function repositoryTextFiles(workspace: string): string[] {
@@ -281,17 +346,30 @@ function retrieveSpecPortion(spec: ProjectSpec, requestedIds: string[]): { ids: 
   };
 }
 
-function applyEdits(workspace: string, allowedFiles: string[], result: z.infer<typeof EditSchema>): void {
+function applyPatches(workspace: string, allowedFiles: string[], result: z.infer<typeof PatchSchema>): void {
   const allowed = new Set(allowedFiles);
-  for (const edit of result.edits) {
-    const relative = normalize(edit.path);
-    if (!allowed.has(relative)) throw new Error(`Agent attempted to edit a file outside its supplied context: ${relative}`);
+  const updated = new Map<string, string>();
+  for (const patch of result.patches) {
+    const relative = normalize(patch.path);
+    if (!allowed.has(relative)) throw new Error(`Agent attempted to patch a file outside its supplied context: ${relative}`);
     const target = path.resolve(workspace, relative);
-    if (!target.startsWith(`${path.resolve(workspace)}${path.sep}`) || !fs.existsSync(target)) throw new Error(`Unsafe edit path: ${relative}`);
-    fs.writeFileSync(target, edit.content);
+    if (!target.startsWith(`${path.resolve(workspace)}${path.sep}`) || !fs.existsSync(target)) throw new Error(`Unsafe patch path: ${relative}`);
+
+    const source = updated.get(relative) ?? fs.readFileSync(target, "utf8");
+    const oldText = matchLineEndings(patch.oldText, source);
+    const newText = matchLineEndings(patch.newText, source);
+    const first = source.indexOf(oldText);
+    if (first < 0) throw new Error(`Patch context was not found in ${relative}.`);
+    if (source.indexOf(oldText, first + oldText.length) >= 0) throw new Error(`Patch context is not unique in ${relative}.`);
+    updated.set(relative, source.slice(0, first) + newText + source.slice(first + oldText.length));
   }
+  for (const [relative, content] of updated) fs.writeFileSync(path.join(workspace, relative), content);
 }
 
+function matchLineEndings(value: string, source: string): string {
+  const eol = source.includes("\r\n") ? "\r\n" : "\n";
+  return value.replace(/\r?\n/g, eol);
+}
 function parseJson(value: string): unknown {
   return JSON.parse(value.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, ""));
 }
@@ -301,6 +379,9 @@ function normalize(value: string): string {
 function required(value: string | undefined, name: string): string {
   if (!value) throw new Error(`${name} is required.`);
   return value;
+}
+function message(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
 }
 function redactSecrets(value: string): string {
   return value
