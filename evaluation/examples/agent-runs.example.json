@@ -3,12 +3,12 @@
     "schema": "deveco.specgen-agent-run/v1", "taskId": "add-settings-page", "runId": "baseline-1", "condition": "baseline",
     "success": false, "buildPassed": true, "testsPassed": false, "architectureIssueCount": 1,
     "durationMs": 180000, "inputTokens": 50000, "outputTokens": 8000, "filesTouched": 12, "repairIterations": 2,
-    "retrievedIds": [], "relevantIds": []
+    "retrievedIds": [], "relevantIds": [], "usedProjectSpec": false
   },
   {
     "schema": "deveco.specgen-agent-run/v1", "taskId": "add-settings-page", "runId": "spec-1", "condition": "project-spec",
     "success": true, "buildPassed": true, "testsPassed": true, "architectureIssueCount": 0,
     "durationMs": 130000, "inputTokens": 30000, "outputTokens": 7000, "filesTouched": 7, "repairIterations": 0,
-    "retrievedIds": ["module:settings", "interface:preferences"], "relevantIds": ["module:settings", "interface:preferences"]
+    "retrievedIds": ["module:settings", "interface:preferences"], "relevantIds": ["module:settings", "interface:preferences"], "usedProjectSpec": true
   }
 ]

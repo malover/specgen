@@ -21,3 +21,7 @@ export {
   AgentRunSchema, EvaluationReportSchema
 } from "./evaluation-schema.js";
 export type { EvaluationGroundTruth, ArchitectureMutation, AgentRun, EvaluationReport, Score } from "./evaluation-schema.js";
+export { convertLegacyGroundTruth } from "./ground-truth.js";
+export { architectureReviewSeed, writeArchitectureReviewSeed } from "./architecture-evaluation.js";
+export { AgentExperimentConfigSchema, loadAgentExperiment, runAgentExperiment } from "./agent-experiment.js";
+export type { AgentExperimentConfig } from "./agent-experiment.js";

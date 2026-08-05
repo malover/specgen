@@ -29,7 +29,8 @@ export function compareAgentRuns(values: unknown[]): AgentComparison {
   };
   const warnings = [
     ...(pairedTaskIds.length < Math.max(baselineTasks.size, specTasks.size) ? ["Some tasks are not represented in both conditions."] : []),
-    ...(runs.length < pairedTaskIds.length * 6 ? ["Use at least three repetitions per task and condition; five is preferred."] : [])
+    ...(runs.length < pairedTaskIds.length * 6 ? ["Use at least three repetitions per task and condition; five is preferred."] : []),
+    ...(specRuns.some(item => item.usedProjectSpec !== true) ? ["One or more treatment runs did not confirm that Project SPEC was consumed."] : [])
   ];
   return { baseline, projectSpec, delta, pairedTaskIds, warnings };
 }

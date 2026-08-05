@@ -18,6 +18,7 @@ export interface EvaluationInput {
 export function evaluateProject(input: EvaluationInput): EvaluationReport {
   const { observation, spec, groundTruth } = input;
   const eligibleEntities = observation.entities.filter(item => eligibleKinds.has(item.kind));
+  const ownableEntities = eligibleEntities.filter(item => item.kind !== "module" && item.kind !== "package");
   const representedEntityIds = new Set([
     ...spec.modules.flatMap(item => item.entityId ? [item.entityId] : []),
     ...spec.interfaces.map(item => item.entityId),
@@ -26,7 +27,20 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
   const eligibleRelations = observation.relations.filter(item => dependencyKinds.has(item.kind));
   const representedRelationIds = new Set(spec.modules.flatMap(item => item.dependencies.flatMap(dep => dep.evidence.flatMap(ref => ref.relationId ? [ref.relationId] : []))));
   const publicEntities = eligibleEntities.filter(item => item.kind === "interface" || item.kind === "component" || item.metadata?.exported === true || item.metadata?.visibility === "public");
+  const publicIds = new Set(publicEntities.map(item => item.id));
   const interfaceEntityIds = new Set(spec.interfaces.map(item => item.entityId));
+  const moduleByFile = new Map(spec.modules.flatMap(module => module.files.map(file => [file, module.id] as const)));
+  const entityById = new Map(observation.entities.map(item => [item.id, item]));
+  const crossModuleRelations = eligibleRelations.filter(edge => {
+    const source = entityById.get(edge.source); const target = entityById.get(edge.target);
+    const sourceModule = source ? moduleByFile.get(source.filePath) : undefined;
+    const targetModule = target ? moduleByFile.get(target.filePath) : undefined;
+    return Boolean(sourceModule && (edge.resolution !== "internal" || !targetModule || sourceModule !== targetModule));
+  });
+  const publicRelations = eligibleRelations.filter(edge => publicIds.has(edge.source) || publicIds.has(edge.target));
+  const graphValidRelations = observation.relations.filter(edge => entityById.has(edge.source) && (edge.resolution !== "internal" || entityById.has(edge.target)));
+  const calls = observation.relations.filter(edge => edge.kind === "calls");
+  const validCalls = calls.filter(edge => entityById.has(edge.source) && (edge.resolution !== "internal" || entityById.has(edge.target)));
   const refs = collectEvidence(spec);
   const validRefs = refs.filter(ref => evidenceValid(ref, observation, input.repositoryRoot));
   const records = [...spec.modules, ...spec.interfaces, ...spec.interfaces.flatMap(item => item.operations)];
@@ -40,6 +54,14 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
   const incrementalMs = input.incrementalMs ?? null;
   const structural = {
     fileCoverage: score(observation.indexedFiles.filter(file => observation.candidateFiles.includes(file)).length, new Set(observation.candidateFiles).size),
+    moduleOwnershipCoverage: score(ownableEntities.filter(item => moduleByFile.has(item.filePath)).length, ownableEntities.length),
+    publicApiCoverage: score(publicEntities.filter(item => interfaceEntityIds.has(item.id)).length, publicEntities.length),
+    moduleDependencyCoverage: score(crossModuleRelations.filter(item => representedRelationIds.has(item.id)).length, crossModuleRelations.length),
+    publicInterfaceRelationshipCoverage: score(publicRelations.filter(item => representedRelationIds.has(item.id)).length, publicRelations.length),
+    graphRelationshipIntegrity: score(graphValidRelations.length, observation.relations.length),
+    callGraphIntegrity: score(validCalls.length, calls.length),
+    entityPromotionRate: score(eligibleEntities.filter(item => representedEntityIds.has(item.id)).length, eligibleEntities.length),
+    relationshipPromotionRate: score(eligibleRelations.filter(item => representedRelationIds.has(item.id)).length, eligibleRelations.length),
     entitySpecCoverage: score(eligibleEntities.filter(item => representedEntityIds.has(item.id)).length, eligibleEntities.length),
     relationshipSpecCoverage: score(eligibleRelations.filter(item => representedRelationIds.has(item.id)).length, eligibleRelations.length),
     interfaceSpecCoverage: score(publicEntities.filter(item => interfaceEntityIds.has(item.id)).length, publicEntities.length),
@@ -49,10 +71,11 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
     incrementalFreshness: incrementalMs === null ? score(0, 0) : score(incrementalMs <= 5000 ? 1 : 0, 1), stability
   };
   const weighted = [
-    [structural.entitySpecCoverage.value, .20], [structural.interfaceSpecCoverage.value, .15],
-    [structural.relationshipSpecCoverage.value, .15], [structural.evidenceValidity.value, .15],
+    [structural.moduleOwnershipCoverage.value, .12], [structural.publicApiCoverage.value, .12],
+    [structural.moduleDependencyCoverage.value, .12], [structural.graphRelationshipIntegrity.value, .09],
+    [structural.evidenceValidity.value, .15],
     [structural.schemaValidity.value, .10], [accuracy.entityRecall.value, .10],
-    [accuracy.edgePrecision.value, .10], [architecture.issueRecall.value, .05]
+    [accuracy.edgePrecision.value, .10], [architecture.issueRecall.value, .10]
   ] as Array<[number | null, number]>;
   const present = weighted.filter(([value]) => value !== null);
   const weight = present.reduce((sum, [, value]) => sum + value, 0);
@@ -61,11 +84,24 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
     ...((input.mutations?.length ?? 0) ? [] : ["Architecture mutations were not supplied; issue recall is not evaluated."]),
     ...(refs.length ? [] : ["The Project SPEC contains no evidence references."])
   ];
+  const compositeStatus = groundTruth && (input.mutations?.length ?? 0) > 0 ? "complete" as const : "not-evaluated" as const;
+  if (compositeStatus === "not-evaluated") warnings.unshift("Overall product quality is not scored until reviewed accuracy and architecture mutation results are available.");
+  const structuralWeights = [
+    [structural.fileCoverage.value, .15], [structural.moduleOwnershipCoverage.value, .20],
+    [structural.publicApiCoverage.value, .15], [structural.moduleDependencyCoverage.value, .15],
+    [structural.graphRelationshipIntegrity.value, .10], [structural.evidenceValidity.value, .15],
+    [structural.schemaValidity.value, .10]
+  ] as Array<[number | null, number]>;
+  const structuralPresent = structuralWeights.filter(([value]) => value !== null);
+  const structuralWeight = structuralPresent.reduce((sum, [, itemWeight]) => sum + itemWeight, 0);
+  const calculatedComposite = weight ? present.reduce((sum, [value, itemWeight]) => sum + (value ?? 0) * itemWeight, 0) / weight : 0;
   const report: EvaluationReport = {
     schema: EVALUATION_SCHEMA, generatedAt: new Date().toISOString(), repository: observation.repository,
     structural, accuracy, architecture,
     performance: { incrementalMs, withinFiveSeconds: incrementalMs === null ? null : incrementalMs <= 5000, crashFree: !input.crashed },
-    compositeScore: weight ? present.reduce((sum, [value, itemWeight]) => sum + (value ?? 0) * itemWeight, 0) / weight : 0,
+    structuralScore: structuralWeight ? structuralPresent.reduce((sum, [value, itemWeight]) => sum + (value ?? 0) * itemWeight, 0) / structuralWeight : 0,
+    compositeScore: compositeStatus === "complete" ? calculatedComposite : null,
+    compositeStatus,
     warnings,
     acceptance: {
       fileCoverage: (structural.fileCoverage.value ?? 0) >= .95,

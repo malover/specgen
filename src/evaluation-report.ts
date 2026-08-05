@@ -14,9 +14,14 @@ export function writeEvaluationReport(directory: string, report: EvaluationRepor
 export function evaluationMarkdown(report: EvaluationReport): string {
   const rows: Array<[string, Score, string]> = [
     ["File coverage", report.structural.fileCoverage, ">= 95%"],
-    ["Entity SPEC coverage", report.structural.entitySpecCoverage, "informational"],
-    ["Relationship SPEC coverage", report.structural.relationshipSpecCoverage, "informational"],
-    ["Interface SPEC coverage", report.structural.interfaceSpecCoverage, "informational"],
+    ["Module ownership coverage", report.structural.moduleOwnershipCoverage, "informational"],
+    ["Public API coverage", report.structural.publicApiCoverage, "informational"],
+    ["Module dependency coverage", report.structural.moduleDependencyCoverage, "informational"],
+    ["Public API relationship coverage", report.structural.publicInterfaceRelationshipCoverage, "informational"],
+    ["Graph relationship integrity", report.structural.graphRelationshipIntegrity, "100%"],
+    ["Call graph integrity", report.structural.callGraphIntegrity, "100%"],
+    ["Top-level entity promotion rate", report.structural.entityPromotionRate, "informational"],
+    ["Top-level relationship promotion rate", report.structural.relationshipPromotionRate, "informational"],
     ["Evidence validity", report.structural.evidenceValidity, ">= 98%"],
     ["Entity recall", report.accuracy.entityRecall, ">= 85%"],
     ["Edge precision", report.accuracy.edgePrecision, ">= 90%"],
@@ -24,7 +29,7 @@ export function evaluationMarkdown(report: EvaluationReport): string {
   ];
   const acceptance = Object.entries(report.acceptance).map(([name, value]) => `| ${name} | ${value === true ? "PASS" : value === false ? "FAIL" : "NOT EVALUATED"} |`).join("\n");
   return `# SpecGen Evaluation — ${report.repository}\n\n` +
-    `Generated: ${report.generatedAt}\n\nComposite score: **${percent(report.compositeScore)}**\n\n` +
+    `Generated: ${report.generatedAt}\n\nStructural score: **${percent(report.structuralScore)}**\n\nOverall composite: **${report.compositeScore === null ? "not evaluated" : percent(report.compositeScore)}**\n\n` +
     `## Quality metrics\n\n| Metric | Score | Target |\n|---|---:|---:|\n${rows.map(([name, value, target]) => `| ${name} | ${format(value)} | ${target} |`).join("\n")}\n\n` +
     `## Performance\n\n- Incremental update: ${report.performance.incrementalMs === null ? "not evaluated" : `${report.performance.incrementalMs.toFixed(1)} ms`}\n- Crash free: ${report.performance.crashFree ? "yes" : "no"}\n\n` +
     `## Architecture mutation suite\n\n- Cases: ${report.architecture.cases}\n- Detected: ${report.architecture.detected}\n- False positives: ${report.architecture.falsePositives}\n\n` +

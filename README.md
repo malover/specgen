@@ -18,6 +18,14 @@ The current core makes no LLM calls. Semantic responsibilities, protocols, pre/p
 - Machine-readable `evaluation-report.json` and client-readable `evaluation-report.md`.
 - A reviewed two-module ArkTS fixture, architecture rule, mutation and agent-run example.
 
+### Evaluation corrections in v0.5.1
+
+- A reviewed legacy `ground-truth.v2.json` is converted and reused automatically; accuracy review is not duplicated.
+- Broad entity/edge promotion rates are now informational and no longer pretend that every internal graph item must be copied into the top-level SPEC.
+- Coverage is split into module ownership, public APIs, cross-module dependencies, public-API relationships, graph integrity and call-graph integrity.
+- Architecture constraints and mutation cases can be initialized from observed module directions. They remain candidates until a human accepts them.
+- The agent A/B layer can now execute a configurable agent command in fresh, isolated repository copies and run objective build, test and architecture verification commands.
+
 ## What changed in v0.4
 
 - Versioned Zod and JSON Schemas for Project, Module, Interface, and Architecture Constraint SPEC records.
@@ -238,7 +246,17 @@ evaluation/
 
 Ground truth is deliberately separate from generated observations. A generated graph cannot validate itself. Review a representative, architecture-oriented sample once and reuse it for every candidate version. The checked-in `fixture-small` files demonstrate the exact schemas. For medium and large public repositories, select stable modules at a pinned commit and record the upstream URL, revision and license in the ground-truth metadata.
 
+If the older evaluation already has a reviewed `results/<repo>/ground-truth.v2.json`, no new labeling file is required. `evaluate:quality` converts it to `evaluation-ground-truth.json` beside the run artifacts and uses it automatically. Unreviewed seeds are rejected.
+
 If a mutation file is absent, SpecGen generates forbidden-dependency cases from accepted constraints whose source and target selectors identify real modules. Explicit mutation files remain preferable for a client benchmark because they make the test suite versioned and auditable.
+
+Create initial review files from the currently observed module directions:
+
+```powershell
+npm run init:architecture-eval -- --repo openharmony-screenlock --config spike.config.json
+```
+
+This writes candidate constraints and matching mutations. Review the proposed layer direction, delete incorrect candidates, and change approved constraints from `"status": "candidate"` to `"status": "accepted"`. Candidate rules are never scored as architecture checks.
 
 Each repository receives:
 
@@ -253,7 +271,7 @@ The report separates three questions:
 2. **Accuracy:** does the extracted graph match independently reviewed ground truth?
 3. **Architecture detection:** does the checker detect controlled violations without false alarms?
 
-The composite score is a summary only. Contract acceptance should always use the individual metrics, especially entity recall, edge precision and architecture-issue recall.
+The structural score summarizes automatic repository-to-SPEC checks. The overall composite is deliberately `not evaluated` until both reviewed accuracy and accepted architecture mutation results exist. Contract acceptance should always use the individual metrics, especially entity recall, edge precision and architecture-issue recall.
 
 ## Agent A/B evaluation
 
@@ -264,6 +282,53 @@ npm run evaluate:agent -- --runs ./my-agent-runs.json --output ./agent-evaluatio
 ```
 
 The comparison reports task/build/test success, architecture compliance, duration, token use, files touched, repair iterations, and progressive-disclosure retrieval precision and recall. Only paired tasks are compared. Five repetitions per task and condition are preferred for client-facing results.
+
+To execute the experiment rather than only aggregate existing results, copy `evaluation/examples/agent-experiment.example.json` and configure an agent adapter:
+
+```powershell
+npm run agent:ab -- --experiment ./my-agent-experiment.json
+```
+
+For every task and repetition, the harness:
+
+1. Creates a fresh repository copy for the baseline condition.
+2. Invokes the configured agent without a Project SPEC.
+3. Runs configured build, test and architecture commands.
+4. Repeats from the same clean source under the Project-SPEC condition.
+5. Records files changed, duration, verification results, retrieval IDs and optional token metadata.
+6. Writes `agent-runs.json` and `agent-comparison.json`.
+
+The harness does not choose or call an LLM by itself. `agent.command` may point to a DevEco adapter, another coding-agent CLI, or a controlled test wrapper. The command receives these environment variables:
+
+```text
+SPECGEN_CONDITION
+SPECGEN_TASK_ID
+SPECGEN_TASK_PROMPT
+SPECGEN_PROMPT_FILE
+SPECGEN_PROJECT_SPEC
+SPECGEN_ARCHITECTURE_CONSTRAINTS
+SPECGEN_RESULT_FILE
+SPECGEN_MODEL
+```
+
+The adapter should write optional usage metadata to `SPECGEN_RESULT_FILE`:
+
+```json
+{
+  "inputTokens": 30000,
+  "outputTokens": 7000,
+  "repairIterations": 1,
+  "retrievedIds": ["module-spec:settings"],
+  "architectureIssueCount": 0,
+  "usedProjectSpec": true
+}
+```
+
+The configured model identifier, agent command, prompts, verifiers and source repository must stay identical between conditions. Only access to Project SPEC should change.
+
+## Local graph database
+
+CodeGraph uses an embedded local SQLite index under `.codegraph`. It is a cache used for graph queries and incremental updates, not a separately launched database server. Do not commit it. DevEco can store it in its project cache and update it when source files change.
 
 ## Recommended client dashboard
 

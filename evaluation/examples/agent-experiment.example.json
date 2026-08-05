@@ -1,0 +1,27 @@
+{
+  "schema": "deveco.specgen-agent-experiment/v1",
+  "model": "your-fixed-model-and-version",
+  "repetitions": 3,
+  "outputDirectory": "../../agent-evaluation-output",
+  "agent": {
+    "command": "deveco-agent-adapter",
+    "args": ["--workspace", "{repository}", "--prompt-file", "{promptFile}", "--project-spec", "{spec}", "--result", "{resultFile}"],
+    "timeoutMs": 900000,
+    "env": {}
+  },
+  "tasks": [
+    {
+      "id": "add-settings-page",
+      "repository": "../../../path-to-clean-repository",
+      "prompt": "Add the agreed settings page without changing unrelated modules.",
+      "projectSpecFile": "../../../results-v4/repository/project-spec/project-spec.json",
+      "architectureConstraintsFile": "../architecture/repository.constraints.json",
+      "relevantIds": ["module-spec:settings", "interface-spec:preferences"],
+      "verification": [
+        { "purpose": "build", "command": "hvigorw.bat", "args": ["assembleHap"], "timeoutMs": 600000, "env": {} },
+        { "purpose": "test", "command": "hvigorw.bat", "args": ["test"], "timeoutMs": 600000, "env": {} },
+        { "purpose": "architecture", "command": "specgen", "args": ["architecture-check-repo", "--repository", "{repository}", "--constraints", "{constraints}"], "timeoutMs": 120000, "env": {} }
+      ]
+    }
+  ]
+}

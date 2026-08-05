@@ -33,7 +33,7 @@ export const AgentRunSchema = z.object({
   durationMs: z.number().nonnegative(), inputTokens: z.number().int().nonnegative(),
   outputTokens: z.number().int().nonnegative(), filesTouched: z.number().int().nonnegative(),
   repairIterations: z.number().int().nonnegative(), retrievedIds: z.array(z.string()).default([]),
-  relevantIds: z.array(z.string()).default([])
+  relevantIds: z.array(z.string()).default([]), usedProjectSpec: z.boolean().optional()
 });
 
 const ScoreSchema = z.object({
@@ -43,8 +43,13 @@ const ScoreSchema = z.object({
 export const EvaluationReportSchema = z.object({
   schema: z.literal(EVALUATION_SCHEMA), generatedAt: z.string().datetime(), repository: z.string().min(1),
   structural: z.object({
-    fileCoverage: ScoreSchema, entitySpecCoverage: ScoreSchema, relationshipSpecCoverage: ScoreSchema,
-    interfaceSpecCoverage: ScoreSchema, evidenceValidity: ScoreSchema, evidenceCompleteness: ScoreSchema,
+    fileCoverage: ScoreSchema,
+    moduleOwnershipCoverage: ScoreSchema, publicApiCoverage: ScoreSchema,
+    moduleDependencyCoverage: ScoreSchema, publicInterfaceRelationshipCoverage: ScoreSchema,
+    graphRelationshipIntegrity: ScoreSchema, callGraphIntegrity: ScoreSchema,
+    entityPromotionRate: ScoreSchema, relationshipPromotionRate: ScoreSchema,
+    entitySpecCoverage: ScoreSchema, relationshipSpecCoverage: ScoreSchema, interfaceSpecCoverage: ScoreSchema,
+    evidenceValidity: ScoreSchema, evidenceCompleteness: ScoreSchema,
     schemaValidity: ScoreSchema, orphanRate: ScoreSchema, duplicateRate: ScoreSchema,
     incrementalFreshness: ScoreSchema, stability: ScoreSchema.nullable()
   }),
@@ -59,7 +64,8 @@ export const EvaluationReportSchema = z.object({
     precision: ScoreSchema, details: z.array(z.object({ id: z.string(), passed: z.boolean(), detectedConstraintIds: z.array(z.string()) }))
   }),
   performance: z.object({ incrementalMs: z.number().nullable(), withinFiveSeconds: z.boolean().nullable(), crashFree: z.boolean() }),
-  compositeScore: z.number().min(0).max(1), warnings: z.array(z.string()),
+  structuralScore: z.number().min(0).max(1), compositeScore: z.number().min(0).max(1).nullable(),
+  compositeStatus: z.enum(["complete", "not-evaluated"]), warnings: z.array(z.string()),
   acceptance: z.record(z.string(), z.union([z.boolean(), z.literal("not-evaluated")]))
 });
 

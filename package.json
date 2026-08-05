@@ -1,10 +1,11 @@
 {
   "name": "arkts-indexing-spike",
-  "version": "0.5.0",
+  "version": "0.5.1",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
   "types": "./dist/src/index.d.ts",
+  "bin": { "specgen": "./dist/src/cli.js" },
   "exports": {
     ".": {
       "types": "./dist/src/index.d.ts",
@@ -22,6 +23,8 @@
     "evaluate": "tsx src/cli.ts evaluate",
     "evaluate:quality": "tsx src/cli.ts evaluate-quality",
     "evaluate:agent": "tsx src/cli.ts evaluate-agent",
+    "agent:ab": "tsx src/cli.ts run-agent-ab",
+    "init:architecture-eval": "tsx src/cli.ts init-architecture-eval",
     "project-spec": "tsx src/cli.ts project-spec",
     "query": "tsx src/cli.ts query"
   },
