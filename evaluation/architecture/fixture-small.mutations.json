@@ -1,0 +1,10 @@
+[
+  {
+    "id": "mutation:reverse-layer-dependency",
+    "description": "Inject a forbidden dependency from the reusable shared module to the application entry module.",
+    "sourceModuleId": "module-spec:6ecc02ff",
+    "targetModuleId": "module-spec:274747c4",
+    "relationKind": "imports",
+    "expectedConstraintId": "constraint:shared-must-not-depend-on-entry"
+  }
+]

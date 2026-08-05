@@ -1,0 +1,16 @@
+[
+  {
+    "id": "constraint:shared-must-not-depend-on-entry",
+    "name": "Shared module is independent from entry",
+    "description": "The reusable shared module must not import or call the application entry module.",
+    "severity": "error",
+    "status": "accepted",
+    "effect": "forbid",
+    "sourceSelector": { "moduleIds": ["module-spec:6ecc02ff"] },
+    "relationKinds": ["imports", "calls"],
+    "targetSelector": { "moduleIds": ["module-spec:274747c4"] },
+    "provenance": "human",
+    "confidence": 1,
+    "evidence": []
+  }
+]

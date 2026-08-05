@@ -1,0 +1,39 @@
+{
+  "schema": "deveco.specgen-ground-truth/v1",
+  "repository": "fixture-small",
+  "reviewedBy": "SpecGen fixture review",
+  "reviewedAt": "2026-08-05T00:00:00.000Z",
+  "files": [
+    "entry/src/main/ets/pages/Index.ets",
+    "shared/src/main/ets/Helper.ets"
+  ],
+  "entities": [
+    { "kind": "component", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "Index" },
+    { "kind": "method", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "build" },
+    { "kind": "function", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "greeting" },
+    { "kind": "function", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "formatGreeting" },
+    { "kind": "function", "filePath": "shared/src/main/ets/Helper.ets", "name": "sharedGreeting" }
+  ],
+  "relations": [
+    { "kind": "contains", "sourceName": "shared/src/main/ets/Helper.ets", "targetName": "sharedGreeting", "filePath": "shared/src/main/ets/Helper.ets" },
+    { "kind": "contains", "sourceName": "entry/src/main/ets/pages/Index.ets", "targetName": "../../../../../shared/src/main/ets/Helper", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "entry/src/main/ets/pages/Index.ets", "targetName": "Index", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "entry/src/main/ets/pages/Index.ets", "targetName": "greeting", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "entry/src/main/ets/pages/Index.ets", "targetName": "formatGreeting", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "Index", "targetName": "Index::build", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "Index", "targetName": "Index::message", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "imports", "sourceName": "entry/src/main/ets/pages/Index.ets", "targetName": "sharedGreeting", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "calls", "sourceName": "greeting", "targetName": "sharedGreeting", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "calls", "sourceName": "greeting", "targetName": "formatGreeting", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "fixture-small", "targetName": "shared/src/main/ets/Helper.ets", "filePath": "shared/src/main/ets/Helper.ets" },
+    { "kind": "contains", "sourceName": "fixture-small", "targetName": "entry/src/main/ets/pages/Index.ets", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "entry", "targetName": "entry/src/main/ets/pages/Index.ets", "filePath": "entry/src/main/ets/pages/Index.ets" },
+    { "kind": "contains", "sourceName": "shared", "targetName": "shared/src/main/ets/Helper.ets", "filePath": "shared/src/main/ets/Helper.ets" }
+  ],
+  "interfaceEntities": [
+    { "kind": "component", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "Index" },
+    { "kind": "function", "filePath": "entry/src/main/ets/pages/Index.ets", "name": "greeting" },
+    { "kind": "function", "filePath": "shared/src/main/ets/Helper.ets", "name": "sharedGreeting" }
+  ],
+  "notes": ["Small checked-in ArkTS fixture reviewed directly from source; intended to validate the evaluation machinery, not replace repository-scale sampling."]
+}

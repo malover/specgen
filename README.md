@@ -1,10 +1,22 @@
-# SpecGen ProjectSpec Core — OpenHarmony Profile
+# SpecGen ProjectSpec Core and Evaluation — OpenHarmony Profile
 
-Version 0.4 turns the in-process, mixed-language CodeGraph evidence spike into the first deterministic ProjectSpec Core. It remains entirely TypeScript and launches no Python runtime, MCP server, or database service.
+Version 0.5 adds a repeatable evaluation system to the deterministic ProjectSpec Core. It remains entirely TypeScript and launches no Python runtime, MCP server, or database service.
 
 The engine indexes every language CodeGraph supports and then applies an OpenHarmony ecosystem profile for `module.json5`, `build-profile.json5`, `oh-package.json5` and related manifests. ArkTS additionally receives an independent direct Tree-sitter comparison.
 
 The current core makes no LLM calls. Semantic responsibilities, protocols, pre/post-conditions, and exceptions remain explicitly `not-established` or `structural-only` until a later grounded LLM and human-review stage supplies them.
+
+## What changed in v0.5
+
+- Automatic structural metrics for file, entity, relationship and interface coverage.
+- Evidence-reference validity and completeness, schema validity, orphan and duplicate rates, deterministic-ID stability and incremental freshness.
+- Reusable reviewed ground-truth format with entity, relation and interface precision/recall/F1.
+- Generic architecture-constraint checker for `forbid`, `allow` and `require` rules.
+- Seeded architecture mutation evaluation with issue recall, precision and false positives/KLOC.
+- Automatic mutation generation for accepted forbidden-dependency constraints with explicit module selectors.
+- Baseline-versus-Project-SPEC agent evaluation for task success, builds, tests, architecture compliance, time, tokens, files changed, repair iterations and retrieval accuracy.
+- Machine-readable `evaluation-report.json` and client-readable `evaluation-report.md`.
+- A reviewed two-module ArkTS fixture, architecture rule, mutation and agent-run example.
 
 ## What changed in v0.4
 
@@ -199,6 +211,69 @@ npm run evaluate -- --config spike.config.json
 ```
 
 Unreviewed repositories do not block the command. Their recall and precision remain `null`, and their acceptance values say `not-evaluated` rather than passing by comparison with an unreviewed seed.
+
+## End-to-end quality evaluation
+
+After `all` has produced the repository artifacts, run:
+
+```powershell
+npm run evaluate:quality -- --config spike.config.json
+```
+
+To evaluate one repository or use another evaluation-data directory:
+
+```powershell
+npm run evaluate:quality -- --repo openharmony-screenlock --config spike.config.json --evaluation-dir ./evaluation
+```
+
+The evaluator looks for:
+
+```text
+evaluation/
+├── ground-truth/<repository-id>.json
+└── architecture/
+    ├── <repository-id>.constraints.json
+    └── <repository-id>.mutations.json
+```
+
+Ground truth is deliberately separate from generated observations. A generated graph cannot validate itself. Review a representative, architecture-oriented sample once and reuse it for every candidate version. The checked-in `fixture-small` files demonstrate the exact schemas. For medium and large public repositories, select stable modules at a pinned commit and record the upstream URL, revision and license in the ground-truth metadata.
+
+If a mutation file is absent, SpecGen generates forbidden-dependency cases from accepted constraints whose source and target selectors identify real modules. Explicit mutation files remain preferable for a client benchmark because they make the test suite versioned and auditable.
+
+Each repository receives:
+
+```text
+evaluation-report.json
+evaluation-report.md
+```
+
+The report separates three questions:
+
+1. **Structural completeness:** did deterministic extraction and Project SPEC storage cover the code?
+2. **Accuracy:** does the extracted graph match independently reviewed ground truth?
+3. **Architecture detection:** does the checker detect controlled violations without false alarms?
+
+The composite score is a summary only. Contract acceptance should always use the individual metrics, especially entity recall, edge precision and architecture-issue recall.
+
+## Agent A/B evaluation
+
+Record repeated runs of the same tasks with and without Project SPEC using `deveco.specgen-agent-run/v1`. Start from `evaluation/examples/agent-runs.example.json`, use at least three runs per task and condition, then run:
+
+```powershell
+npm run evaluate:agent -- --runs ./my-agent-runs.json --output ./agent-evaluation.json
+```
+
+The comparison reports task/build/test success, architecture compliance, duration, token use, files touched, repair iterations, and progressive-disclosure retrieval precision and recall. Only paired tasks are compared. Five repetitions per task and condition are preferred for client-facing results.
+
+## Recommended client dashboard
+
+| Category | Primary metrics | Acceptance |
+|---|---|---:|
+| Indexing | supported-file coverage, crash-free rate, incremental freshness | ≥95%, 100%, ≤5 s |
+| Ground-truth accuracy | entity recall, edge precision, interface recall | ≥85%, ≥90%, report |
+| Evidence | evidence validity, schema validity | ≥98%, 100% |
+| Architecture | seeded issue recall, precision, false positives/KLOC | ≥75%, report, report |
+| Agent usefulness | task success and architecture-compliance delta | improvement over baseline |
 
 ## How to read the report
 

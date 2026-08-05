@@ -12,3 +12,12 @@ export type {
   CoverageLedger, ArchitectureView, EvidenceReference, OperationSpec
 } from "./project-spec-schema.js";
 export type { Entity, Relation, Observation, SpikeConfig, RepoConfig } from "./model.js";
+export { evaluateProject } from "./evaluation.js";
+export { checkArchitecture, applyArchitectureMutation, generateArchitectureMutations } from "./architecture-check.js";
+export { compareAgentRuns } from "./agent-evaluation.js";
+export { evaluationMarkdown, writeEvaluationReport } from "./evaluation-report.js";
+export {
+  EVALUATION_SCHEMA, EvaluationGroundTruthSchema, ArchitectureMutationSchema,
+  AgentRunSchema, EvaluationReportSchema
+} from "./evaluation-schema.js";
+export type { EvaluationGroundTruth, ArchitectureMutation, AgentRun, EvaluationReport, Score } from "./evaluation-schema.js";
