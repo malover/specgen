@@ -13,8 +13,8 @@ const schema = z.object({
     small: z.number().int().nonnegative().default(0),
     medium: z.number().int().nonnegative().default(20),
     large: z.number().int().nonnegative().default(30),
-    seed: z.string().default("specgen-phase1-v2")
-  }).default({ small: 0, medium: 20, large: 30, seed: "specgen-phase1-v2" }),
+    seed: z.string().default("specgen-phase1-v4")
+  }).default({ small: 0, medium: 20, large: 30, seed: "specgen-phase1-v4" }),
   acceptance: z.object({
     fileCoverage: z.number().min(0).max(1).default(0.95),
     entityRecall: z.number().min(0).max(1).default(0.85),

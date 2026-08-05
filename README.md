@@ -1,24 +1,24 @@
-# Universal Code Evidence Spike — OpenHarmony Profile
+# SpecGen ProjectSpec Core — OpenHarmony Profile
 
-Version 0.2 validates CodeGraph as an in-process, mixed-language evidence layer for SpecGen. It imports CodeGraph into the current Node process: no Python, MCP server, database service or separate runtime is launched.
+Version 0.4 turns the in-process, mixed-language CodeGraph evidence spike into the first deterministic ProjectSpec Core. It remains entirely TypeScript and launches no Python runtime, MCP server, or database service.
 
 The engine indexes every language CodeGraph supports and then applies an OpenHarmony ecosystem profile for `module.json5`, `build-profile.json5`, `oh-package.json5` and related manifests. ArkTS additionally receives an independent direct Tree-sitter comparison.
 
-Phase 1 makes no LLM calls. OpenRouter variables remain in `.env.example` for later ProjectSpec and RequestSpec work.
+The current core makes no LLM calls. Semantic responsibilities, protocols, pre/post-conditions, and exceptions remain explicitly `not-established` or `structural-only` until a later grounded LLM and human-review stage supplies them.
 
-## What changed in v0.2
+## What changed in v0.4
 
-- Mixed-language repository graph instead of an `.ets`/`.ts`-only graph.
-- Repository, file, package, OpenHarmony module and external-symbol entities.
-- All CodeGraph node kinds are preserved with native kind and language metadata.
-- ArkUI `@Entry`, `@Component` and `@ComponentV2` structs are classified as components while retaining `nativeKind: "struct"`.
-- Every relation has represented endpoints and an `internal`, `external` or `unresolved` resolution status.
-- Cross-language edges remain in the repository graph instead of contaminating an ArkTS-only subset.
-- Per-language, per-kind and per-resolution summaries.
-- Zero-symbol file and orphan-edge diagnostics.
-- Deterministic stratified sampling for medium and large repositories.
-- Accuracy remains `not-evaluated` until `review.status` is explicitly set to `reviewed` and the unreviewed diagnostic is removed.
-- Direct Tree-sitter edges are deduplicated.
+- Versioned Zod and JSON Schemas for Project, Module, Interface, and Architecture Constraint SPEC records.
+- Deterministic module and public/interface API records with file/line evidence.
+- Structural signatures, parameters, return types, and explicit unknown behavioral contracts.
+- Structural coverage and semantic-completeness ledgers are reported separately.
+- Project, module, interface, and evidence progressive-disclosure queries.
+- Candidate architecture-constraint representation; inferred rules are not silently activated.
+- Deterministic JSON and Mermaid module-dependency architecture views.
+- Decomposed artifacts that can be loaded without placing the full repository SPEC in agent context.
+- Topology-only and resolution-aware parser agreement are reported independently.
+- Architecture-oriented review sampling across interfaces, services, components, boundaries, languages, modules, tests, and tooling.
+- v0.3 relation resolution, mixed-language graph, diagnostics, and incremental indexing remain intact.
 
 ## Acceptance targets
 
@@ -66,13 +66,13 @@ Edit `spike.config.json`. Example:
       "path": "D:/arkts-repos/large-systemui"
     }
   ],
-  "outputDirectory": "./results-v2",
+  "outputDirectory": "./results-v4",
   "incremental": { "trials": 3, "timeoutMs": 10000 },
   "sampling": {
     "small": 0,
     "medium": 20,
     "large": 30,
-    "seed": "specgen-phase1-v2"
+    "seed": "specgen-phase1-v4"
   },
   "acceptance": {
     "fileCoverage": 0.95,
@@ -83,7 +83,7 @@ Edit `spike.config.json`. Example:
 }
 ```
 
-`small: 0` means select every file. Medium and large select fixed-size deterministic samples. Reusing the same seed produces the same selection for the same graph.
+`small: 0` means select every semantic source file. Medium and large use architecture-oriented deterministic strata. Up to three configuration files are listed separately and do not consume the semantic accuracy budget.
 
 ## Run
 
@@ -102,17 +102,66 @@ npm run spike -- run --repo arkts-xcomponent --config spike.config.json
 Each repository produces:
 
 ```text
-results-v2/<repo>/
+results-v4/<repo>/
 ├── codegraph.observation.json
 ├── tree-sitter.observation.json
 ├── incremental.json
 ├── sample-manifest.json
 ├── report.json
 ├── run-status.json
+├── project-spec/
+│   ├── project-spec.json
+│   ├── project.json
+│   ├── coverage.json
+│   ├── constraints.json
+│   ├── modules/*.json
+│   ├── interfaces/*.json
+│   ├── schemas/*.schema.json
+│   └── views/
+│       ├── module-dependencies.json
+│       └── module-dependencies.mmd
 └── crash.json                    # failures only
 ```
 
 The CodeGraph observation is the complete mixed-language graph. The Tree-sitter observation contains only the independent ArkTS baseline. `report.json` includes their ArkTS agreement, but labels it as agreement rather than ground-truth accuracy.
+
+## ProjectSpec without reindexing
+
+Regenerate deterministic ProjectSpec artifacts from an existing observation:
+
+```powershell
+npm run project-spec -- --repo arkts-xcomponent --config spike.config.json
+```
+
+## Progressive-disclosure queries
+
+Start with the bounded project index:
+
+```powershell
+npm run query -- --repo arkts-xcomponent --level project --config spike.config.json
+```
+
+Then request only the needed module, interface, or evidence references:
+
+```powershell
+npm run query -- --repo arkts-xcomponent --level module --id entry --config spike.config.json
+npm run query -- --repo arkts-xcomponent --level interface --id MyService --config spike.config.json
+npm run query -- --repo arkts-xcomponent --level evidence --id "function:<entity-id>" --config spike.config.json
+```
+
+The same API is available in TypeScript through `queryProjectSpec(spec, query)`.
+
+```ts
+import { buildProjectSpec, queryProjectSpec } from "arkts-indexing-spike";
+
+const spec = buildProjectSpec(codeGraphObservation, repositoryPath);
+const project = queryProjectSpec(spec, { level: "project" });
+const moduleDetail = queryProjectSpec(spec, { level: "module", id: "entry" });
+```
+
+## Coverage semantics
+
+`structuralCoverage` measures whether deterministically discoverable modules, APIs, signatures, and evidence references have SPEC records. `semanticCompleteness` measures reviewed responsibilities and behavioral contracts. A 100% structural score must not be presented as satisfying the final 75% Project SPEC completeness requirement when semantic completeness is still low.
 
 ## Human accuracy evaluation
 
@@ -122,7 +171,7 @@ Create sampled review seeds after indexing:
 npm run init-ground-truth -- --config spike.config.json
 ```
 
-This creates `ground-truth.v2.json` for each repository using the files listed in `sample-manifest.json`. Review only those files. The versioned name prevents an old circular v0.1 seed from being mistaken for reviewed v0.2 evidence.
+This creates `ground-truth.v2.json` for each repository using `sample-manifest.json.selectedFiles`. Review those files for entity and relation accuracy. Review `configurationFiles` separately for discovery/configuration coverage; they are intentionally excluded from entity recall and edge precision.
 
 For each sampled file:
 
@@ -157,6 +206,9 @@ Important fields:
 
 ```text
 codegraph.metrics.fileCoverage
+codegraph.metrics.sourceFileCoverage
+codegraph.metrics.configurationFileCoverage
+codegraph.metrics.scope
 codegraph.metrics.entityRecall
 codegraph.metrics.edgePrecision
 codegraph.acceptance
@@ -165,11 +217,15 @@ codegraph.summary.relationsByKind
 codegraph.summary.relationsByResolution
 codegraph.summary.byLanguage
 codegraph.diagnostics
-treeSitterArkts.agreementWithCodeGraph
+codegraph.observation.json -> diagnosticDetails
+treeSitterArkts.topologyAgreementWithCodeGraph
+treeSitterArkts.resolutionAwareAgreementWithCodeGraph
+projectSpec.structuralCoverage
+projectSpec.semanticCompleteness
 incremental.medianMs
 ```
 
-`agreementWithCodeGraph` is useful for finding parser disagreements, but it is not a correctness score.
+Parser agreement is useful for finding extraction disagreements, but it is not a human-reviewed correctness score.
 
 ## Graph invariants
 
@@ -181,4 +237,4 @@ incremental.medianMs
 
 ## Intended product integration
 
-After the spike passes, the evidence package can move into DevEco Code as an internal TypeScript package. DevEco will supply its existing model client to semantic ProjectSpec, RequestSpec and alignment layers. OpenRouter remains a standalone-development option rather than an internal MCP boundary.
+The core is designed to move into DevEco Code as an internal TypeScript package. DevEco will later supply its model client to grounded semantic enrichment, RequestSpec generation, and architecture checks. The current deterministic records, schemas, queries, and views require no MCP boundary.

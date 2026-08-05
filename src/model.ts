@@ -6,6 +6,16 @@ export type RelationKind =
   | "references" | "type_of" | "returns" | "instantiates" | "overrides" | "decorates"
   | "depends_on" | "builds" | "tests" | "configures" | "bridges_to";
 export type Resolution = "internal" | "external" | "unresolved";
+export type FileRole = "source" | "test" | "build-tooling" | "configuration";
+
+export interface DiagnosticDetails {
+  filesByRole: Record<FileRole, string[]>;
+  missingIndexedFiles: string[];
+  parserFailures: Array<{ file: string; errors: string[] }>;
+  actionableZeroSymbolFiles: string[];
+  expectedZeroSymbolFiles: string[];
+  orphanRelationIds: string[];
+}
 
 export interface Entity {
   id: string;
@@ -50,9 +60,11 @@ export interface Observation {
   generatedAt: string;
   candidateFiles: string[];
   indexedFiles: string[];
+  fileRoles?: Record<string, FileRole>;
   entities: Entity[];
   relations: Relation[];
   diagnostics: string[];
+  diagnosticDetails?: DiagnosticDetails;
   timingsMs: Record<string, number>;
   review: ReviewInfo;
 }

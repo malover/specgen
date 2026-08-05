@@ -1,3 +1,5 @@
+import { sharedGreeting } from '../../../../../shared/src/main/ets/Helper'
+
 @Entry
 @Component
 struct Index {
@@ -11,7 +13,7 @@ struct Index {
 }
 
 export function greeting(name: string): string {
-  return formatGreeting(name)
+  return sharedGreeting(formatGreeting(name))
 }
 
 function formatGreeting(name: string): string {

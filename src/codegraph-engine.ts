@@ -1,8 +1,9 @@
+import fs from "node:fs";
 import path from "node:path";
 import { createRequire } from "node:module";
 import type { CodeGraph as CodeGraphType, Edge, FileRecord, Language, Node, NodeKind } from "@colbymchenry/codegraph";
-import type { Entity, Observation, Relation, RelationKind, Resolution } from "./model.js";
-import { normalize, stableId, supportedSourceFiles } from "./files.js";
+import type { DiagnosticDetails, Entity, Observation, Relation, RelationKind, Resolution } from "./model.js";
+import { classifyFileRole, normalize, stableId, supportedSourceFiles } from "./files.js";
 import { discoverProjectStructure } from "./project-profile.js";
 import { withId } from "./relations.js";
 
@@ -33,13 +34,15 @@ export async function extractCodeGraph(repository: string, repoPath: string): Pr
 
   const indexedRecords = graph.getFiles();
   for (const record of indexedRecords) ensureFileEntity(record, entities);
+  const indexedFiles = indexedRecords.map((file: FileRecord) => normalize(file.path)).sort();
+  const indexedFileSet = new Set(indexedFiles);
 
   const relationMap = new Map<string, Relation>();
   for (const node of nodes) {
     for (const edge of graph.getOutgoingEdges(node.id)) {
       ensureEndpoint(edge.source, nodes, entities);
       ensureEndpoint(edge.target, nodes, entities);
-      const relation = fromEdge(edge, entities);
+      const relation = fromEdge(edge, entities, indexedFileSet);
       relationMap.set(relation.id, relation);
     }
   }
@@ -57,14 +60,15 @@ export async function extractCodeGraph(repository: string, repoPath: string): Pr
   for (const entity of structure.entities) entities.set(entity.id, entity);
   for (const relation of structure.relations) addRelation(relationMap, relation);
 
-  const indexedFiles = indexedRecords.map((file: FileRecord) => normalize(file.path)).sort();
-  const diagnostics = graphDiagnostics(candidateFiles, indexedFiles, [...entities.values()], [...relationMap.values()]);
+  const diagnosticDetails = graphDiagnostics(repoPath, candidateFiles, indexedRecords, [...entities.values()], [...relationMap.values()]);
+  const diagnostics = diagnosticMessages(diagnosticDetails);
+  const fileRoles = Object.fromEntries(candidateFiles.map(file => [file, classifyFileRole(file)]));
   return {
     graph,
     observation: {
       schemaVersion: 2, engine: "codegraph", repository, generatedAt: new Date().toISOString(),
-      candidateFiles, indexedFiles, entities: [...entities.values()], relations: [...relationMap.values()],
-      diagnostics, timingsMs: { total: performance.now() - started, fullIndex: indexMs },
+      candidateFiles, indexedFiles, fileRoles, entities: [...entities.values()], relations: [...relationMap.values()],
+      diagnostics, diagnosticDetails, timingsMs: { total: performance.now() - started, fullIndex: indexMs },
       review: { status: "not-required", sampledFiles: [] }
     }
   };
@@ -103,13 +107,26 @@ function ensureEndpoint(id: string, nodes: Node[], entities: Map<string, Entity>
   });
 }
 
-function fromEdge(edge: Edge, entities: Map<string, Entity>): Relation {
+export function classifyResolution(kind: RelationKind, target: Entity, indexedFiles: Set<string>): Resolution {
+  // CodeGraph represents an unresolved/external import as an `import` node located
+  // in the importing file. Its filePath is therefore not proof of internal resolution.
+  if (target.kind === "import" || target.kind === "external_symbol") {
+    return kind === "imports" || target.kind === "import" ? "external" : "unresolved";
+  }
+  if (target.filePath && indexedFiles.has(normalize(target.filePath))) return "internal";
+  if (target.filePath) return "external";
+  return ["imports", "extends", "implements", "type_of", "returns"].includes(kind) ? "external" : "unresolved";
+}
+
+function fromEdge(edge: Edge, entities: Map<string, Entity>, indexedFiles: Set<string>): Relation {
   const source = entities.get(edge.source)!; const target = entities.get(edge.target)!;
-  const resolution: Resolution = !target.filePath ? "external" : target.provenance === "synthetic" && target.kind === "external_symbol" ? "unresolved" : "internal";
+  const resolution = classifyResolution(edge.kind as RelationKind, target, indexedFiles);
   return withId({
     kind: edge.kind as RelationKind, source: edge.source, target: edge.target,
     sourceName: source.qualifiedName, targetName: target.qualifiedName,
-    filePath: source.filePath || undefined, resolution, provenance: "codegraph"
+    filePath: source.filePath || undefined, resolution,
+    metadata: compact({ ...edge.metadata, line: edge.line, column: edge.column, codegraphProvenance: edge.provenance }),
+    provenance: "codegraph"
   });
 }
 
@@ -123,16 +140,51 @@ function compact(value: Record<string, unknown>): Record<string, unknown> | unde
   return entries.length ? Object.fromEntries(entries) : undefined;
 }
 
-function graphDiagnostics(candidate: string[], indexed: string[], entities: Entity[], relations: Relation[]): string[] {
-  const diagnostics: string[] = [];
+function graphDiagnostics(repoPath: string, candidate: string[], records: FileRecord[], entities: Entity[], relations: Relation[]): DiagnosticDetails {
+  const indexed = records.map(record => normalize(record.path));
   const indexedSet = new Set(indexed);
   const ids = new Set(entities.map(entity => entity.id));
   const missingFiles = candidate.filter(file => !indexedSet.has(file));
-  if (missingFiles.length) diagnostics.push(`${missingFiles.length} supported source file(s) were not indexed: ${missingFiles.slice(0, 10).join(", ")}`);
   const orphanEdges = relations.filter(edge => !ids.has(edge.source) || !ids.has(edge.target));
-  if (orphanEdges.length) diagnostics.push(`${orphanEdges.length} relation(s) have missing endpoints`);
   const filesWithSymbols = new Set(entities.filter(entity => entity.kind !== "file" && entity.filePath).map(entity => entity.filePath));
   const zeroEntity = indexed.filter(file => !filesWithSymbols.has(file));
-  if (zeroEntity.length) diagnostics.push(`${zeroEntity.length} indexed source file(s) produced zero symbols: ${zeroEntity.slice(0, 10).join(", ")}`);
+  const parserFailures = records.flatMap(record => {
+    const errors = (record.errors ?? []).filter(error => error.severity === "error").map(error => error.message);
+    return errors.length ? [{ file: normalize(record.path), errors }] : [];
+  });
+  const parserFailureFiles = new Set(parserFailures.map(item => item.file));
+  const expectedZeroSymbolFiles = zeroEntity.filter(file => isExpectedZeroSymbol(repoPath, file));
+  const expectedZeroSymbolSet = new Set(expectedZeroSymbolFiles);
+  const actionableZeroSymbolFiles = zeroEntity.filter(file => !expectedZeroSymbolSet.has(file) && !parserFailureFiles.has(file));
+  const filesByRole = { source: [], test: [], "build-tooling": [], configuration: [] } as DiagnosticDetails["filesByRole"];
+  for (const file of candidate) filesByRole[classifyFileRole(file)].push(file);
+  return {
+    filesByRole, missingIndexedFiles: missingFiles, parserFailures,
+    actionableZeroSymbolFiles, expectedZeroSymbolFiles,
+    orphanRelationIds: orphanEdges.map(edge => edge.id)
+  };
+}
+
+function isExpectedZeroSymbol(repoPath: string, file: string): boolean {
+  const role = classifyFileRole(file);
+  if (role === "configuration" || role === "build-tooling") return true;
+  try {
+    const content = fs.readFileSync(path.join(repoPath, file), "utf8");
+    const withoutComments = content.replace(/\/\*[\s\S]*?\*\//g, "").replace(/^\s*\/\/.*$/gm, "").trim();
+    if (!withoutComments) return true;
+    const basename = path.posix.basename(file).toLowerCase();
+    if (/^index\.(?:[cm]?[jt]sx?|ets)$/.test(basename) && /\bexport\b/.test(withoutComments) &&
+        !/\b(class|struct|interface|function|enum|namespace)\b|@(?:Entry|Component|ComponentV2)\b/.test(withoutComments)) return true;
+  } catch { /* unreadable files remain actionable */ }
+  return false;
+}
+
+function diagnosticMessages(details: DiagnosticDetails): string[] {
+  const diagnostics: string[] = [];
+  if (details.missingIndexedFiles.length) diagnostics.push(`${details.missingIndexedFiles.length} supported file(s) were not indexed: ${details.missingIndexedFiles.slice(0, 10).join(", ")}`);
+  if (details.parserFailures.length) diagnostics.push(`${details.parserFailures.length} file(s) reported parser errors: ${details.parserFailures.slice(0, 10).map(item => item.file).join(", ")}`);
+  if (details.orphanRelationIds.length) diagnostics.push(`${details.orphanRelationIds.length} relation(s) have missing endpoints`);
+  if (details.actionableZeroSymbolFiles.length) diagnostics.push(`${details.actionableZeroSymbolFiles.length} code or tooling file(s) produced zero symbols and require review: ${details.actionableZeroSymbolFiles.slice(0, 10).join(", ")}`);
+  if (details.expectedZeroSymbolFiles.length) diagnostics.push(`${details.expectedZeroSymbolFiles.length} configuration, build-tooling, empty, or barrel file(s) produced zero symbols (informational): ${details.expectedZeroSymbolFiles.slice(0, 10).join(", ")}`);
   return diagnostics;
 }

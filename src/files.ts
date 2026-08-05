@@ -2,6 +2,7 @@ import path from "node:path";
 import { createRequire } from "node:module";
 import fg from "fast-glob";
 import type { Language } from "@colbymchenry/codegraph";
+import type { FileRole } from "./model.js";
 
 const require = createRequire(import.meta.url);
 const sdk = require("@colbymchenry/codegraph") as { detectLanguage(filePath: string): Language };
@@ -20,6 +21,19 @@ export async function arktsFiles(repoPath: string): Promise<string[]> {
 }
 
 export const languageOf = (file: string): Language => sdk.detectLanguage(file);
+export function classifyFileRole(file: string, language: Language = languageOf(file)): FileRole {
+  const normalized = normalize(file).toLowerCase();
+  const basename = path.posix.basename(normalized);
+  if (["yaml", "xml", "properties"].includes(language)) return "configuration";
+  if (/(^|\/)(tests?|__tests__|testdata|fixtures?)\//.test(normalized) ||
+      /(?:^|[._-])(test|spec)\.[^.]+$/.test(basename)) return "test";
+  if (/(^|\/)(\.github\/workflows|scripts?|tools?|build-logic|gradle)\//.test(normalized) ||
+      /^(?:hvigorfile|noxfile|gulpfile|gruntfile|webpack\.config|vite\.config|rollup\.config|eslint\.config|setup)\./.test(basename)) {
+    return "build-tooling";
+  }
+  return "source";
+}
+export const isAccuracyReviewFile = (file: string): boolean => classifyFileRole(file) !== "configuration";
 export const normalize = (value: string): string => value.split(path.sep).join("/");
 export const keyName = (name: string): string => name.replace(/[^A-Za-z0-9_$]/g, "").toLowerCase();
 export const stableId = (value: string): string => {

@@ -1,33 +1,55 @@
 import type { Entity, Observation, Relation, SpikeConfig } from "./model.js";
-import { keyName } from "./files.js";
+import { classifyFileRole, keyName } from "./files.js";
 
 export interface EngineMetrics {
   fileCoverage: number;
+  sourceFileCoverage: number;
+  configurationFileCoverage: number | null;
   entityRecall: number | null;
   entityPrecision: number | null;
   edgeRecall: number | null;
   edgePrecision: number | null;
-  counts: { candidateFiles: number; indexedFiles: number; entities: number; relations: number };
+  counts: {
+    candidateFiles: number; indexedFiles: number;
+    sourceCandidateFiles: number; sourceIndexedFiles: number;
+    configurationCandidateFiles: number; configurationIndexedFiles: number;
+    evaluatedEntities: number; evaluatedRelations: number;
+    completeGraphEntities: number; completeGraphRelations: number;
+  };
+  scope: { coverage: "complete-supported-file-set"; accuracy: "sampled-reviewed-files" | "not-evaluated"; selectedAccuracyFiles: number };
 }
 
 const evaluatedEntityKinds = new Set(["module", "package", "class", "struct", "interface", "function", "method", "import", "component"]);
 const entityKey = (entity: Entity) => `${entity.kind}|${entity.filePath.toLowerCase()}|${keyName(entity.name)}`;
 const endpointName = (value: string) => keyName(value.split("::").at(-1)?.split(".").at(-1) ?? value);
-const relationKey = (edge: Relation) => `${edge.kind}|${endpointName(edge.sourceName)}|${endpointName(edge.targetName)}|${edge.resolution}`;
+const relationKey = (edge: Relation, includeResolution = true) => `${edge.kind}|${endpointName(edge.sourceName)}|${endpointName(edge.targetName)}${includeResolution ? `|${edge.resolution}` : ""}`;
 
-export function calculateMetrics(actual: Observation, truth?: Observation, selectedFiles?: string[]): EngineMetrics {
+export function calculateMetrics(actual: Observation, truth?: Observation, selectedFiles?: string[], includeResolution = true): EngineMetrics {
   const selected = new Set((selectedFiles ?? truth?.review.sampledFiles ?? actual.candidateFiles).map(file => file.toLowerCase()));
-  const candidate = new Set(actual.candidateFiles.filter(file => selected.has(file.toLowerCase())).map(file => file.toLowerCase()));
-  const indexed = new Set(actual.indexedFiles.filter(file => selected.has(file.toLowerCase())).map(file => file.toLowerCase()));
+  const candidate = new Set(actual.candidateFiles.map(file => file.toLowerCase()));
+  const indexed = new Set(actual.indexedFiles.map(file => file.toLowerCase()));
+  const sourceCandidate = actual.candidateFiles.filter(file => classifyFileRole(file) !== "configuration");
+  const sourceIndexedSet = new Set(actual.indexedFiles.filter(file => classifyFileRole(file) !== "configuration").map(file => file.toLowerCase()));
+  const configurationCandidate = actual.candidateFiles.filter(file => classifyFileRole(file) === "configuration");
+  const configurationIndexedSet = new Set(actual.indexedFiles.filter(file => classifyFileRole(file) === "configuration").map(file => file.toLowerCase()));
   const actualEntities = scopedEntities(actual, selected); const actualRelations = scopedRelations(actual, selected);
   const base = {
     fileCoverage: candidate.size ? [...candidate].filter(file => indexed.has(file)).length / candidate.size : 1,
-    counts: { candidateFiles: candidate.size, indexedFiles: indexed.size, entities: actualEntities.length, relations: actualRelations.length }
+    sourceFileCoverage: sourceCandidate.length ? sourceCandidate.filter(file => sourceIndexedSet.has(file.toLowerCase())).length / sourceCandidate.length : 1,
+    configurationFileCoverage: configurationCandidate.length ? configurationCandidate.filter(file => configurationIndexedSet.has(file.toLowerCase())).length / configurationCandidate.length : null,
+    counts: {
+      candidateFiles: candidate.size, indexedFiles: indexed.size,
+      sourceCandidateFiles: sourceCandidate.length, sourceIndexedFiles: sourceIndexedSet.size,
+      configurationCandidateFiles: configurationCandidate.length, configurationIndexedFiles: configurationIndexedSet.size,
+      evaluatedEntities: actualEntities.length, evaluatedRelations: actualRelations.length,
+      completeGraphEntities: actual.entities.length, completeGraphRelations: actual.relations.length
+    },
+    scope: { coverage: "complete-supported-file-set" as const, accuracy: truth?.review.status === "reviewed" ? "sampled-reviewed-files" as const : "not-evaluated" as const, selectedAccuracyFiles: selected.size }
   };
   if (!truth || truth.review.status !== "reviewed") return { ...base, entityRecall: null, entityPrecision: null, edgeRecall: null, edgePrecision: null };
   const truthEntities = scopedEntities(truth, selected); const truthRelations = scopedRelations(truth, selected);
   const actualEntityKeys = new Set(actualEntities.map(entityKey)); const truthEntityKeys = new Set(truthEntities.map(entityKey));
-  const actualRelationKeys = new Set(actualRelations.map(relationKey)); const truthRelationKeys = new Set(truthRelations.map(relationKey));
+  const actualRelationKeys = new Set(actualRelations.map(edge => relationKey(edge, includeResolution))); const truthRelationKeys = new Set(truthRelations.map(edge => relationKey(edge, includeResolution)));
   const overlap = (left: Set<string>, right: Set<string>) => [...left].filter(value => right.has(value)).length;
   return {
     ...base,
@@ -38,9 +60,9 @@ export function calculateMetrics(actual: Observation, truth?: Observation, selec
   };
 }
 
-export function agreement(actual: Observation, reference: Observation, selectedFiles: string[]): EngineMetrics {
+export function agreement(actual: Observation, reference: Observation, selectedFiles: string[], includeResolution = true): EngineMetrics {
   const reviewedReference: Observation = { ...reference, review: { status: "reviewed", sampledFiles: selectedFiles, notes: "Agreement reference only; not human ground truth." } };
-  return calculateMetrics(actual, reviewedReference, selectedFiles);
+  return calculateMetrics(actual, reviewedReference, selectedFiles, includeResolution);
 }
 
 export function summarize(observation: Observation) {

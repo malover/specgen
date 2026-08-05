@@ -1,32 +1,12 @@
 {
   "repositories": [
-    {
-      "id": "fixture-small",
-      "size": "small",
-      "path": "./test/fixtures/arkts-mini"
-    },
-    {
-      "id": "fixture-medium",
-      "size": "medium",
-      "path": "./test/fixtures/arkts-mini"
-    },
-    {
-      "id": "fixture-large",
-      "size": "large",
-      "path": "./test/fixtures/arkts-mini"
-    }
+    { "id": "fixture-small", "size": "small", "path": "./test/fixtures/arkts-mini" },
+    { "id": "fixture-medium", "size": "medium", "path": "./test/fixtures/arkts-mini" },
+    { "id": "fixture-large", "size": "large", "path": "./test/fixtures/arkts-mini" }
   ],
   "outputDirectory": "./test-output",
-  "incremental": {
-    "trials": 1,
-    "timeoutMs": 10000
-  },
-  "sampling": {
-    "small": 0,
-    "medium": 1,
-    "large": 1,
-    "seed": "test"
-  },
+  "incremental": { "trials": 1, "timeoutMs": 10000 },
+  "sampling": { "small": 0, "medium": 1, "large": 1, "seed": "test" },
   "acceptance": {
     "fileCoverage": 0.95,
     "entityRecall": 0.85,

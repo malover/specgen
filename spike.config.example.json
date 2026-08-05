@@ -4,7 +4,7 @@
     { "id": "medium", "size": "medium", "path": "D:/repos/arkts-medium" },
     { "id": "large", "size": "large", "path": "D:/repos/arkts-large" }
   ],
-  "outputDirectory": "./results-v2",
+  "outputDirectory": "./results-v4",
   "incremental": {
     "trials": 3,
     "timeoutMs": 10000
@@ -13,7 +13,7 @@
     "small": 0,
     "medium": 20,
     "large": 30,
-    "seed": "specgen-phase1-v2"
+    "seed": "specgen-phase1-v4"
   },
   "acceptance": {
     "fileCoverage": 0.95,

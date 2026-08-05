@@ -1,5 +1,6 @@
 {
   modules: [
-    { name: "entry", srcPath: "./entry" }
+    { name: "entry", srcPath: "./entry" },
+    { name: "shared", srcPath: "./shared" }
   ]
 }
