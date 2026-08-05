@@ -41,7 +41,7 @@ withConfig(program.command("evaluate-full").description("run indexing, Project S
   .option("--independent-oracle", "include optional Tree-sitter parser agreement diagnostics", false)
   .option("--skip-agent", "skip the OpenRouter agent A/B stage", false)
   .option("--agent-tasks <count>", "generated tasks per repository", "1")
-  .option("--agent-repetitions <count>", "baseline/treatment repetitions per task", "3")
+  .option("--agent-repetitions <count>", "baseline/treatment repetitions per task", "1")
   .action(async ({ config: file, evaluationDir, independentOracle, skipAgent, agentTasks, agentRepetitions }) => {
     const taskCount = positiveInteger(agentTasks, "--agent-tasks");
     const repetitions = positiveInteger(agentRepetitions, "--agent-repetitions");
