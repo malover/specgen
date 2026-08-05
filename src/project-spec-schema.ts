@@ -59,7 +59,7 @@ export const ArchitectureConstraintSchema = z.object({
   severity: z.enum(["info", "warning", "error"]), status: z.enum(["candidate", "accepted", "rejected"]),
   effect: z.enum(["allow", "forbid", "require"]), sourceSelector: ConstraintSelectorSchema,
   relationKinds: z.array(z.string()).min(1), targetSelector: ConstraintSelectorSchema,
-  provenance: z.enum(["deterministic", "llm", "human"]), confidence: z.number().min(0).max(1),
+  provenance: z.enum(["deterministic", "human"]), confidence: z.number().min(0).max(1),
   evidence: z.array(EvidenceReferenceSchema)
 });
 
