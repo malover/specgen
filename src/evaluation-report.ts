@@ -12,6 +12,7 @@ export function writeEvaluationReport(directory: string, report: EvaluationRepor
 }
 
 export function evaluationMarkdown(report: EvaluationReport): string {
+  const silver = report.accuracy.oracle === "silver-tree-sitter-source-verified";
   const rows: Array<[string, Score, string]> = [
     ["File coverage", report.structural.fileCoverage, ">= 95%"],
     ["Module ownership coverage", report.structural.moduleOwnershipCoverage, "informational"],
@@ -23,16 +24,18 @@ export function evaluationMarkdown(report: EvaluationReport): string {
     ["Top-level entity promotion rate", report.structural.entityPromotionRate, "informational"],
     ["Top-level relationship promotion rate", report.structural.relationshipPromotionRate, "informational"],
     ["Evidence validity", report.structural.evidenceValidity, ">= 98%"],
-    ["Entity recall", report.accuracy.entityRecall, ">= 85%"],
-    ["Edge precision", report.accuracy.edgePrecision, ">= 90%"],
+    [silver ? "Entity agreement recall" : "Entity recall", report.accuracy.entityRecall, silver ? "diagnostic" : ">= 85%"],
+    [silver ? "Edge agreement precision" : "Edge precision", report.accuracy.edgePrecision, silver ? "diagnostic" : ">= 90%"],
     ["Architecture issue recall", report.architecture.issueRecall, ">= 75%"]
   ];
   const acceptance = Object.entries(report.acceptance).map(([name, value]) => `| ${name} | ${value === true ? "PASS" : value === false ? "FAIL" : "NOT EVALUATED"} |`).join("\n");
   return `# SpecGen Evaluation — ${report.repository}\n\n` +
-    `Generated: ${report.generatedAt}\n\nStructural score: **${percent(report.structuralScore)}**\n\nOverall composite: **${report.compositeScore === null ? "not evaluated" : percent(report.compositeScore)}**\n\n` +
+    `Generated: ${report.generatedAt}\n\nStructural score: **${percent(report.structuralScore)}**\n\n${report.compositeStatus === "complete-silver" ? "Silver diagnostic composite" : "Overall composite"}: **${report.compositeScore === null ? "not evaluated" : percent(report.compositeScore)}**\n\n` +
     `## Quality metrics\n\n| Metric | Score | Target |\n|---|---:|---:|\n${rows.map(([name, value, target]) => `| ${name} | ${format(value)} | ${target} |`).join("\n")}\n\n` +
     `## Performance\n\n- Incremental update: ${report.performance.incrementalMs === null ? "not evaluated" : `${report.performance.incrementalMs.toFixed(1)} ms`}\n- Crash free: ${report.performance.crashFree ? "yes" : "no"}\n\n` +
+    `## Accuracy oracle\n\n- Type: ${report.accuracy.oracle}\n- Comparable repository coverage: ${report.accuracy.oracleCoverage === null ? "not evaluated" : percent(report.accuracy.oracleCoverage)}\n\n` +
     `## Architecture mutation suite\n\n- Cases: ${report.architecture.cases}\n- Detected: ${report.architecture.detected}\n- False positives: ${report.architecture.falsePositives}\n\n` +
+    `- Baseline issues: ${report.architecture.baselineIssues}\n` +
     `- False positives/KLOC: ${report.architecture.falsePositivesPerKloc.toFixed(2)}\n\n` +
     `## Acceptance\n\n| Check | Result |\n|---|---|\n${acceptance}\n\n` +
     (report.warnings.length ? `## Warnings\n\n${report.warnings.map(item => `- ${item}`).join("\n")}\n` : "");

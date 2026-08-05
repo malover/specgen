@@ -4,7 +4,19 @@ Version 0.5 adds a repeatable evaluation system to the deterministic ProjectSpec
 
 The engine indexes every language CodeGraph supports and then applies an OpenHarmony ecosystem profile for `module.json5`, `build-profile.json5`, `oh-package.json5` and related manifests. ArkTS additionally receives an independent direct Tree-sitter comparison.
 
-The current core makes no LLM calls. Semantic responsibilities, protocols, pre/post-conditions, and exceptions remain explicitly `not-established` or `structural-only` until a later grounded LLM and human-review stage supplies them.
+The default indexing, Project SPEC and quality-evaluation path makes no LLM calls. OpenRouter is optional for coding-agent A/B experiments and the separately labelled non-authoritative LLM judge.
+
+## What changed in v0.6
+
+- No ArkTS review is required for the normal evaluation workflow.
+- Automatic silver ground truth comes from the independent Tree-sitter extractor plus direct source verification.
+- Silver agreement is confidence-labelled and kept separate from contractual human-reviewed accuracy.
+- Universal architecture mutations automatically test unresolved targets, missing internal modules, self-dependencies and module cycles.
+- Baseline architecture findings are reported separately from mutation false positives.
+- Objective agent tasks are generated from real public APIs and verified against isolated repository copies.
+- A built-in two-step OpenRouter coding-agent adapter makes the A/B benchmark runnable before DevEco integration.
+- Build, test and architecture verifiers act as behavioural oracles for agent changes.
+- An optional OpenRouter LLM judge evaluates supplied claims and evidence but never controls deterministic acceptance.
 
 ## What changed in v0.5
 
@@ -107,6 +119,41 @@ Edit `spike.config.json`. Example:
 
 ## Run
 
+### Zero-manual-review evaluation
+
+This is the normal workflow. You do not need to understand or label ArkTS.
+
+```powershell
+# 1. Index repositories and generate Project SPEC artifacts.
+npm run all -- --config spike.config.json
+
+# 2. Generate automatic silver accuracy, universal mutation and structural reports.
+npm run evaluate:quality -- --config spike.config.json
+```
+
+Open these files for each repository:
+
+```text
+results-v4/<repo>/evaluation-report.md
+results-v4/<repo>/evaluation-report.json
+results-v4/<repo>/silver-ground-truth.json
+```
+
+Interpret the report as follows:
+
+| Result | Meaning |
+|---|---|
+| Structural score | Deterministic repository-to-SPEC completeness and integrity |
+| Silver diagnostic composite | Automatic diagnostic summary; not human contractual accuracy |
+| Oracle coverage | Percentage of repository files comparable through the independent Tree-sitter path |
+| Entity/edge agreement | CodeGraph agreement with source-verified Tree-sitter labels |
+| Architecture issue recall | Percentage of automatically seeded known violations detected |
+| Baseline issues | Existing invariant violations found before mutation |
+| Evidence validity | Whether SPEC references resolve to real graph entities, relations and files |
+| `NOT EVALUATED` in human acceptance | Expected when no human oracle exists; automatic diagnostics still ran |
+
+For a first client demonstration, show structural coverage, oracle coverage, silver agreement, universal architecture recall, incremental time and crash-free status as separate values. Do not rename silver agreement to human precision/recall.
+
 All repositories:
 
 ```powershell
@@ -183,9 +230,9 @@ const moduleDetail = queryProjectSpec(spec, { level: "module", id: "entry" });
 
 `structuralCoverage` measures whether deterministically discoverable modules, APIs, signatures, and evidence references have SPEC records. `semanticCompleteness` measures reviewed responsibilities and behavioral contracts. A 100% structural score must not be presented as satisfying the final 75% Project SPEC completeness requirement when semantic completeness is still low.
 
-## Human accuracy evaluation
+## Optional human accuracy evaluation
 
-Create sampled review seeds after indexing:
+This section is only needed later for contractual acceptance or proprietary repository-owner validation. It is not required to run the automatic evaluation. Create sampled review seeds after indexing:
 
 ```powershell
 npm run init-ground-truth -- --config spike.config.json
@@ -244,11 +291,11 @@ evaluation/
     └── <repository-id>.mutations.json
 ```
 
-Ground truth is deliberately separate from generated observations. A generated graph cannot validate itself. Review a representative, architecture-oriented sample once and reuse it for every candidate version. The checked-in `fixture-small` files demonstrate the exact schemas. For medium and large public repositories, select stable modules at a pinned commit and record the upstream URL, revision and license in the ground-truth metadata.
+When no reviewed ground truth exists, SpecGen automatically creates `silver-ground-truth.json` from the independent Tree-sitter observation and verifies its labels against source text. The report labels these values as entity/edge *agreement*, reports the comparable-file coverage, and does not treat them as contractual human accuracy.
 
 If the older evaluation already has a reviewed `results/<repo>/ground-truth.v2.json`, no new labeling file is required. `evaluate:quality` converts it to `evaluation-ground-truth.json` beside the run artifacts and uses it automatically. Unreviewed seeds are rejected.
 
-If a mutation file is absent, SpecGen generates forbidden-dependency cases from accepted constraints whose source and target selectors identify real modules. Explicit mutation files remain preferable for a client benchmark because they make the test suite versioned and auditable.
+Every evaluation automatically seeds universal violations with known answers: unresolved dependencies, missing internal module targets, self-dependencies and cycles where the graph permits a cycle mutation. No architecture review is needed for these tests. Accepted project-specific constraints and mutations are added when available.
 
 Create initial review files from the currently observed module directions:
 
@@ -256,7 +303,7 @@ Create initial review files from the currently observed module directions:
 npm run init:architecture-eval -- --repo openharmony-screenlock --config spike.config.json
 ```
 
-This writes candidate constraints and matching mutations. Review the proposed layer direction, delete incorrect candidates, and change approved constraints from `"status": "candidate"` to `"status": "accepted"`. Candidate rules are never scored as architecture checks.
+This optional command writes project-specific candidate constraints and matching mutations. Use it later when an architecture owner is available. Candidate rules are never scored; the universal mutation suite still runs automatically.
 
 Each repository receives:
 
@@ -268,12 +315,12 @@ evaluation-report.md
 The report separates three questions:
 
 1. **Structural completeness:** did deterministic extraction and Project SPEC storage cover the code?
-2. **Accuracy:** does the extracted graph match independently reviewed ground truth?
+2. **Accuracy:** does CodeGraph agree with an independent, source-verified silver oracle—or optional reviewed truth?
 3. **Architecture detection:** does the checker detect controlled violations without false alarms?
 
-The structural score summarizes automatic repository-to-SPEC checks. The overall composite is deliberately `not evaluated` until both reviewed accuracy and accepted architecture mutation results exist. Contract acceptance should always use the individual metrics, especially entity recall, edge precision and architecture-issue recall.
+The structural score summarizes automatic repository-to-SPEC checks. With the automatic oracle, the report produces a clearly labelled **silver diagnostic composite**. A reviewed oracle produces the human composite. Contract acceptance must not present silver agreement as human-reviewed precision or recall.
 
-## Agent A/B evaluation
+## Automatic agent A/B evaluation
 
 Record repeated runs of the same tasks with and without Project SPEC using `deveco.specgen-agent-run/v1`. Start from `evaluation/examples/agent-runs.example.json`, use at least three runs per task and condition, then run:
 
@@ -283,11 +330,20 @@ npm run evaluate:agent -- --runs ./my-agent-runs.json --output ./agent-evaluatio
 
 The comparison reports task/build/test success, architecture compliance, duration, token use, files touched, repair iterations, and progressive-disclosure retrieval precision and recall. Only paired tasks are compared. Five repetitions per task and condition are preferred for client-facing results.
 
-To execute the experiment rather than only aggregate existing results, copy `evaluation/examples/agent-experiment.example.json` and configure an agent adapter:
+Generate objective tasks directly from a repository's public Project SPEC APIs:
 
 ```powershell
-npm run agent:ab -- --experiment ./my-agent-experiment.json
+$env:OPENROUTER_API_KEY = "<your-key>"
+$env:OPENROUTER_MODEL = "qwen/qwen3.6-35b-a3b"
+$env:HTTPS_PROXY = "http://proxyeurope.huawei.com:8080/"
+$env:HTTP_PROXY = $env:HTTPS_PROXY
+$env:NODE_USE_SYSTEM_CA = "1"
+
+npm run spike -- init-agent-benchmark --repo arkts-xcomponent --config spike.config.json --tasks 3
+npm run agent:ab -- --experiment ./evaluation/agent-experiment.arkts-xcomponent.json
 ```
+
+This produces `evaluation/agent-experiment.<repo>.json` plus hidden-answer task files. The model present during generation is recorded in the experiment so both conditions use the same value.
 
 For every task and repetition, the harness:
 
@@ -298,7 +354,7 @@ For every task and repetition, the harness:
 5. Records files changed, duration, verification results, retrieval IDs and optional token metadata.
 6. Writes `agent-runs.json` and `agent-comparison.json`.
 
-The harness does not choose or call an LLM by itself. `agent.command` may point to a DevEco adapter, another coding-agent CLI, or a controlled test wrapper. The command receives these environment variables:
+The generated experiment uses the built-in OpenRouter adapter. It first asks the model to select files, then requests complete bounded edits of only those selected files. Set `OPENROUTER_API_KEY`, `OPENROUTER_MODEL`, and your corporate proxy variables before running. `agent.command` can later be replaced with a DevEco adapter or another coding-agent CLI. The command receives:
 
 ```text
 SPECGEN_CONDITION
@@ -325,6 +381,17 @@ The adapter should write optional usage metadata to `SPECGEN_RESULT_FILE`:
 ```
 
 The configured model identifier, agent command, prompts, verifiers and source repository must stay identical between conditions. Only access to Project SPEC should change.
+
+### Optional LLM judge
+
+Generate evidence-grounded judge input automatically:
+
+```powershell
+npm run spike -- init-llm-judge --repo arkts-xcomponent --config spike.config.json
+npm run spike -- llm-judge --input ./results-v4/arkts-xcomponent/llm-judge-input.json --output ./results-v4/arkts-xcomponent/llm-judge-result.json
+```
+
+The result is explicitly `llm-judge-non-authoritative`. It is useful for semantic claims and architecture plausibility but never replaces source, compiler, test or mutation-based metrics.
 
 ## Local graph database
 

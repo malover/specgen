@@ -13,6 +13,9 @@ import { extractCodeGraph } from "./codegraph-engine.js";
 import { buildProjectSpec } from "./project-spec.js";
 import { checkArchitecture } from "./architecture-check.js";
 import { ArchitectureConstraintSchema } from "./project-spec-schema.js";
+import { GeneratedAgentTaskSchema, generateAgentBenchmark, verifyGeneratedAgentTask } from "./agent-benchmark.js";
+import { generateLlmJudgeInput, runLlmJudge } from "./llm-judge.js";
+import { runOpenRouterAgent } from "./openrouter-agent.js";
 
 const program = new Command().name("arkts-index-spike").description("Evaluate native ArkTS indexing with CodeGraph and direct Tree-sitter");
 const withConfig = (command: Command) => command.option("-c, --config <file>", "configuration file", "spike.config.json");
@@ -73,19 +76,58 @@ program.command("run-agent-ab").description("run isolated baseline versus Projec
   });
 
 program.command("architecture-check-repo").description("index a repository and check it against reviewed architecture constraints")
-  .requiredOption("--repository <path>").requiredOption("--constraints <file>")
+  .requiredOption("--repository <path>").option("--constraints <file>")
   .option("--output <file>", "architecture issue JSON", ".specgen-architecture-issues.json")
-  .action(async ({ repository, constraints: constraintFile, output }) => {
-    const raw = readJson<unknown>(constraintFile); if (!Array.isArray(raw)) throw new Error("Architecture constraints must be a JSON array.");
+  .option("--max-issues <count>", "allowed baseline issue count", "0")
+  .action(async ({ repository, constraints: constraintFile, output, maxIssues }) => {
+    const raw = constraintFile ? readJson<unknown>(constraintFile) : []; if (!Array.isArray(raw)) throw new Error("Architecture constraints must be a JSON array.");
     const constraints = raw.map(item => ArchitectureConstraintSchema.parse(item));
     const extracted = await extractCodeGraph(path.basename(path.resolve(repository)), path.resolve(repository));
     try {
       const spec = { ...buildProjectSpec(extracted.observation, path.resolve(repository)), constraints };
       const issues = checkArchitecture(spec); writeJson(output, issues);
       console.log(`Architecture check: ${issues.length} issue(s); ${output}`);
-      if (issues.length) process.exitCode = 2;
+      if (issues.length > Number.parseInt(maxIssues, 10)) process.exitCode = 2;
     } finally { extracted.graph.close(); }
   });
+
+withConfig(program.command("init-agent-benchmark").description("generate objective, isolated coding-agent A/B tasks from public Project SPEC APIs"))
+  .requiredOption("--repo <id>").option("--evaluation-dir <directory>", "evaluation data directory", "./evaluation")
+  .option("--tasks <count>", "maximum generated tasks", "3")
+  .action(({ config: file, evaluationDir, repo: id, tasks }) => {
+    const config = loadConfig(file); const repo = config.repositories.find(item => item.id === id);
+    if (!repo) throw new Error(`Unknown repository id: ${id}`);
+    const projectSpecFile = path.join(config.outputDirectory, repo.id, "project-spec", "project-spec.json");
+    const spec = readJson<ProjectSpec>(projectSpecFile); if (!spec) throw new Error(`Missing Project SPEC: ${projectSpecFile}`);
+    const result = generateAgentBenchmark(spec, repo.path, projectSpecFile, evaluationDir, Number.parseInt(tasks, 10));
+    console.log(`${repo.id}: generated ${result.tasks} objective agent task(s); configure ${result.experimentFile}`);
+  });
+
+program.command("verify-generated-task").description("verify an automatically generated agent benchmark task")
+  .requiredOption("--task <file>").requiredOption("--repository <path>")
+  .action(({ task: taskFile, repository }) => {
+    const task = GeneratedAgentTaskSchema.parse(readJson<unknown>(taskFile));
+    const result = verifyGeneratedAgentTask(task, path.resolve(repository)); console.log(JSON.stringify(result, null, 2));
+    if (!result.passed) process.exitCode = 3;
+  });
+
+program.command("llm-judge").description("run an optional non-authoritative OpenRouter judge over supplied claims and evidence")
+  .requiredOption("--input <file>").option("--output <file>", "judge result JSON", "llm-judge-result.json")
+  .action(async ({ input, output }) => {
+    const value = readJson<unknown>(input); if (!value) throw new Error(`Missing LLM judge input: ${input}`);
+    writeJson(output, await runLlmJudge(value)); console.log(`Non-authoritative LLM judge result: ${output}`);
+  });
+
+withConfig(program.command("init-llm-judge").description("generate optional grounded LLM-judge inputs from Project SPEC dependencies"))
+  .requiredOption("--repo <id>").option("--output <file>").option("--items <count>", "maximum claims", "20")
+  .action(({ config: file, repo: id, output, items }) => {
+    const config = loadConfig(file); const repo = config.repositories.find(item => item.id === id); if (!repo) throw new Error(`Unknown repository id: ${id}`);
+    const specFile = path.join(config.outputDirectory, repo.id, "project-spec", "project-spec.json"); const spec = readJson<ProjectSpec>(specFile); if (!spec) throw new Error(`Missing Project SPEC: ${specFile}`);
+    const target = output ?? path.join(config.outputDirectory, repo.id, "llm-judge-input.json"); writeJson(target, generateLlmJudgeInput(spec, Number.parseInt(items, 10))); console.log(`${repo.id}: LLM-judge input ready at ${target}`);
+  });
+
+program.command("openrouter-agent").description("internal two-step OpenRouter coding-agent adapter used by generated A/B experiments")
+  .action(async () => { await runOpenRouterAgent(); });
 
 withConfig(program.command("project-spec").description("generate Project SPEC artifacts from an existing CodeGraph observation"))
   .requiredOption("--repo <id>").action(({ config: file, repo: id }) => {

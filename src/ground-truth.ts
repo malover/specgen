@@ -14,6 +14,7 @@ export function convertLegacyGroundTruth(value: Observation): EvaluationGroundTr
   const entities = value.entities.filter(item => files.has(item.filePath) && evaluatedKinds.has(item.kind));
   const result: EvaluationGroundTruth = {
     schema: "deveco.specgen-ground-truth/v1", repository: value.repository,
+    oracle: "human-reviewed",
     reviewedBy: value.review.reviewer ?? "legacy ground-truth reviewer",
     reviewedAt: validDate(value.review.reviewedAt) ?? validDate(value.generatedAt) ?? new Date().toISOString(),
     files: [...files].sort(),

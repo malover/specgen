@@ -5,7 +5,8 @@ import type { ProjectSpec, ArchitectureConstraint } from "./project-spec-schema.
 import { ArchitectureConstraintSchema } from "./project-spec-schema.js";
 import { ArchitectureMutationSchema, EvaluationGroundTruthSchema, type ArchitectureMutation, type EvaluationGroundTruth } from "./evaluation-schema.js";
 import { evaluateProject } from "./evaluation.js";
-import { generateArchitectureMutations } from "./architecture-check.js";
+import { generateArchitectureMutations, generateUniversalArchitectureMutations } from "./architecture-check.js";
+import { generateSilverGroundTruth } from "./silver-ground-truth.js";
 import { writeEvaluationReport } from "./evaluation-report.js";
 import { readJson } from "./io.js";
 import { writeJson } from "./io.js";
@@ -14,16 +15,18 @@ import { convertLegacyGroundTruth } from "./ground-truth.js";
 export function evaluateRepositoryArtifacts(repo: RepoConfig, config: SpikeConfig, evaluationDirectory = "./evaluation"): void {
   const output = path.join(config.outputDirectory, repo.id);
   const observation = required<Observation>(path.join(output, "codegraph.observation.json"));
+  const treeSitter = readJson<Observation>(path.join(output, "tree-sitter.observation.json"));
   const spec = required<ProjectSpec>(path.join(output, "project-spec", "project-spec.json"));
   const incremental = readJson<{ medianMs: number }>(path.join(output, "incremental.json"));
   const status = readJson<{ crashed: boolean }>(path.join(output, "run-status.json"));
-  const groundTruth = optionalGroundTruth(repo.id, evaluationDirectory, output);
+  const groundTruth = optionalGroundTruth(repo.id, evaluationDirectory, output, observation, treeSitter, repo.path);
   const constraints = optionalArray<ArchitectureConstraint>(path.join(evaluationDirectory, "architecture", `${repo.id}.constraints.json`), value => ArchitectureConstraintSchema.parse(value));
   const configuredMutations = optionalArray<ArchitectureMutation>(path.join(evaluationDirectory, "architecture", `${repo.id}.mutations.json`), value => ArchitectureMutationSchema.parse(value));
   const evaluatedSpec = constraints.length ? { ...spec, constraints } : spec;
   const acceptedConstraintIds = new Set(evaluatedSpec.constraints.filter(item => item.status === "accepted").map(item => item.id));
   const reviewedMutations = configuredMutations.filter(item => acceptedConstraintIds.has(item.expectedConstraintId));
-  const mutations = reviewedMutations.length ? reviewedMutations : generateArchitectureMutations(evaluatedSpec);
+  const customMutations = reviewedMutations.length ? reviewedMutations : generateArchitectureMutations(evaluatedSpec);
+  const mutations = uniqueMutations([...generateUniversalArchitectureMutations(evaluatedSpec), ...customMutations]);
   const report = evaluateProject({
     observation, spec: evaluatedSpec, repositoryRoot: repo.path, groundTruth,
     incrementalMs: incremental?.medianMs, crashed: status?.crashed ?? false, mutations
@@ -32,7 +35,7 @@ export function evaluateRepositoryArtifacts(repo: RepoConfig, config: SpikeConfi
   console.log(`${repo.id}: structural ${(report.structuralScore * 100).toFixed(1)}%; overall ${report.compositeScore === null ? "not evaluated" : `${(report.compositeScore * 100).toFixed(1)}%`}; architecture recall ${format(report.architecture.issueRecall.value)}`);
 }
 
-function optionalGroundTruth(id: string, root: string, output: string): EvaluationGroundTruth | undefined {
+function optionalGroundTruth(id: string, root: string, output: string, codeGraph: Observation, treeSitter: Observation | undefined, repositoryRoot: string): EvaluationGroundTruth | undefined {
   for (const file of [path.join(output, "evaluation-ground-truth.json"), path.join(root, "ground-truth", `${id}.json`)]) {
     const value = readJson<unknown>(file); if (value) return EvaluationGroundTruthSchema.parse(value);
   }
@@ -44,6 +47,13 @@ function optionalGroundTruth(id: string, root: string, output: string): Evaluati
     console.log(`${id}: reused reviewed ground-truth.v2.json as ${path.basename(target)}`);
     return converted;
   }
+  if (treeSitter) {
+    const silver = generateSilverGroundTruth(codeGraph, treeSitter, repositoryRoot);
+    if (!silver.files.length) { console.log(`${id}: no files are comparable through the independent Tree-sitter ArkTS oracle`); return undefined; }
+    const target = path.join(output, "silver-ground-truth.json"); writeJson(target, silver);
+    console.log(`${id}: generated automatic source-verified silver ground truth (${silver.files.length} comparable files)`);
+    return silver;
+  }
   return undefined;
 }
 function optionalArray<T>(file: string, parse: (value: unknown) => T): T[] {
@@ -53,3 +63,4 @@ function optionalArray<T>(file: string, parse: (value: unknown) => T): T[] {
 }
 function required<T>(file: string): T { const value = readJson<T>(file); if (!value) throw new Error(`Missing evaluation input: ${file}`); return value; }
 function format(value: number | null): string { return value === null ? "not evaluated" : `${(value * 100).toFixed(1)}%`; }
+function uniqueMutations(items: ArchitectureMutation[]): ArchitectureMutation[] { const seen = new Set<string>(); return items.filter(item => { if (seen.has(item.id)) return false; seen.add(item.id); return true; }); }

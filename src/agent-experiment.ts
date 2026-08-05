@@ -33,6 +33,7 @@ interface AgentMetadata {
 
 export async function runAgentExperiment(raw: unknown): Promise<{ runs: AgentRun[]; comparison: AgentComparison; outputDirectory: string }> {
   const config = AgentExperimentConfigSchema.parse(raw); const output = path.resolve(config.outputDirectory);
+  if (/^SET[_-]/i.test(config.model)) throw new Error("Set a real model identifier in the agent experiment before running it.");
   for (const task of config.tasks) {
     if (!fs.existsSync(task.repository) || !fs.statSync(task.repository).isDirectory()) throw new Error(`Missing task repository: ${task.repository}`);
     if (!fs.existsSync(task.projectSpecFile)) throw new Error(`Missing Project SPEC: ${task.projectSpecFile}`);
@@ -81,7 +82,7 @@ async function executeRun(config: AgentExperimentConfig, task: AgentExperimentCo
   const build = verifications.filter(item => item.purpose === "build"); const tests = verifications.filter(item => item.purpose === "test"); const architecture = verifications.filter(item => item.purpose === "architecture");
   const buildPassed = build.length ? build.every(item => item.result.code === 0) : agent.code === 0;
   const testsPassed = tests.length ? tests.every(item => item.result.code === 0) : agent.code === 0;
-  const architectureIssueCount = metadata.architectureIssueCount ?? architecture.filter(item => item.result.code !== 0).length;
+  const architectureIssueCount = (metadata.architectureIssueCount ?? 0) + architecture.filter(item => item.result.code !== 0).length;
   const after = fileHashes(workspace); const filesTouched = changedFiles(before, after);
   const result = AgentRunSchema.parse({
     schema: "deveco.specgen-agent-run/v1", taskId: task.id, runId, condition,

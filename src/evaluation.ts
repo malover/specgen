@@ -84,8 +84,11 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
     ...((input.mutations?.length ?? 0) ? [] : ["Architecture mutations were not supplied; issue recall is not evaluated."]),
     ...(refs.length ? [] : ["The Project SPEC contains no evidence references."])
   ];
-  const compositeStatus = groundTruth && (input.mutations?.length ?? 0) > 0 ? "complete" as const : "not-evaluated" as const;
+  const compositeStatus = groundTruth && (input.mutations?.length ?? 0) > 0
+    ? groundTruth.oracle === "human-reviewed" ? "complete-human" as const : "complete-silver" as const
+    : "not-evaluated" as const;
   if (compositeStatus === "not-evaluated") warnings.unshift("Overall product quality is not scored until reviewed accuracy and architecture mutation results are available.");
+  if (compositeStatus === "complete-silver") warnings.unshift("Accuracy uses an automatic silver oracle; treat the composite as diagnostic rather than contractual acceptance.");
   const structuralWeights = [
     [structural.fileCoverage.value, .15], [structural.moduleOwnershipCoverage.value, .20],
     [structural.publicApiCoverage.value, .15], [structural.moduleDependencyCoverage.value, .15],
@@ -100,13 +103,13 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
     structural, accuracy, architecture,
     performance: { incrementalMs, withinFiveSeconds: incrementalMs === null ? null : incrementalMs <= 5000, crashFree: !input.crashed },
     structuralScore: structuralWeight ? structuralPresent.reduce((sum, [value, itemWeight]) => sum + (value ?? 0) * itemWeight, 0) / structuralWeight : 0,
-    compositeScore: compositeStatus === "complete" ? calculatedComposite : null,
+    compositeScore: compositeStatus === "not-evaluated" ? null : calculatedComposite,
     compositeStatus,
     warnings,
     acceptance: {
       fileCoverage: (structural.fileCoverage.value ?? 0) >= .95,
-      entityRecall: accuracy.entityRecall.value === null ? "not-evaluated" : accuracy.entityRecall.value >= .85,
-      edgePrecision: accuracy.edgePrecision.value === null ? "not-evaluated" : accuracy.edgePrecision.value >= .90,
+      entityRecall: accuracy.oracle !== "human-reviewed" || accuracy.entityRecall.value === null ? "not-evaluated" : accuracy.entityRecall.value >= .85,
+      edgePrecision: accuracy.oracle !== "human-reviewed" || accuracy.edgePrecision.value === null ? "not-evaluated" : accuracy.edgePrecision.value >= .90,
       architectureIssueRecall: architecture.issueRecall.value === null ? "not-evaluated" : architecture.issueRecall.value >= .75,
       evidenceValidity: (structural.evidenceValidity.value ?? 0) >= .98,
       schemaValidity: structural.schemaValidity.value === 1,
@@ -119,10 +122,11 @@ export function evaluateProject(input: EvaluationInput): EvaluationReport {
 
 function evaluateGroundTruth(observation: Observation, spec: ProjectSpec, truth?: EvaluationGroundTruth) {
   const empty = score(0, 0);
-  if (!truth) return { status: "not-evaluated" as const, entityPrecision: empty, entityRecall: empty, entityF1: empty, edgePrecision: empty, edgeRecall: empty, edgeF1: empty, interfaceRecall: empty };
+  if (!truth) return { status: "not-evaluated" as const, oracle: "none" as const, oracleCoverage: null, entityPrecision: empty, entityRecall: empty, entityF1: empty, edgePrecision: empty, edgeRecall: empty, edgeF1: empty, interfaceRecall: empty };
   const files = new Set(truth.files.map(item => item.toLowerCase()));
   const actualEntities = observation.entities.filter(item => files.has(item.filePath.toLowerCase()) && eligibleKinds.has(item.kind));
-  const actualRelations = observation.relations.filter(item => item.filePath && files.has(item.filePath.toLowerCase()));
+  const silverKinds = truth.oracle === "silver-tree-sitter-source-verified" ? new Set(truth.relations.map(item => item.kind)) : undefined;
+  const actualRelations = observation.relations.filter(item => item.filePath && files.has(item.filePath.toLowerCase()) && (!silverKinds || silverKinds.has(item.kind)));
   const actualEntityKeys = new Set(actualEntities.map(entityKey)); const truthEntityKeys = new Set(truth.entities.map(entityKey));
   const actualRelationKeys = new Set(actualRelations.map(relationKey)); const truthRelationKeys = new Set(truth.relations.map(relationKey));
   const ep = overlap(actualEntityKeys, truthEntityKeys); const rp = overlap(actualRelationKeys, truthRelationKeys);
@@ -131,7 +135,8 @@ function evaluateGroundTruth(observation: Observation, spec: ProjectSpec, truth?
   const interfaces = new Set(spec.interfaces.map(item => entityKey({ kind: kindFromInterface(item.kind), filePath: item.evidence[0]?.filePath ?? "", name: item.name })));
   const expectedInterfaces = new Set(truth.interfaceEntities.map(entityKey));
   return {
-    status: "evaluated" as const, entityPrecision, entityRecall, entityF1: f1(entityPrecision, entityRecall),
+    status: "evaluated" as const, oracle: truth.oracle, oracleCoverage: truth.oracleCoverage ?? 1,
+    entityPrecision, entityRecall, entityF1: f1(entityPrecision, entityRecall),
     edgePrecision, edgeRecall, edgeF1: f1(edgePrecision, edgeRecall),
     interfaceRecall: score(overlap(interfaces, expectedInterfaces), expectedInterfaces.size)
   };
@@ -146,10 +151,10 @@ function evaluateMutations(spec: ProjectSpec, mutations: ArchitectureMutation[],
   const detected = details.filter(item => item.passed).length;
   const totalDetections = details.reduce((sum, item) => sum + item.detectedConstraintIds.length, 0);
   const unexpectedMutantDetections = Math.max(0, totalDetections - detected);
-  const falsePositives = baseline.length + unexpectedMutantDetections;
+  const falsePositives = unexpectedMutantDetections;
   const lines = observation.entities.filter(item => item.kind === "file").reduce((sum, item) => sum + Math.max(0, item.endLine - item.startLine + 1), 0);
   return {
-    cases: mutations.length, detected, issueRecall: score(detected, mutations.length), falsePositives,
+    cases: mutations.length, detected, issueRecall: score(detected, mutations.length), baselineIssues: baseline.length, falsePositives,
     falsePositivesPerKloc: lines ? falsePositives / (lines / 1000) : 0,
     precision: score(detected, detected + falsePositives), details
   };

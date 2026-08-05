@@ -7,6 +7,7 @@ import { evaluateProject } from "../src/evaluation.js";
 import { ArchitectureConstraintSchema, type ProjectSpec } from "../src/project-spec-schema.js";
 import { ArchitectureMutationSchema, EvaluationGroundTruthSchema } from "../src/evaluation-schema.js";
 import { architectureReviewSeed } from "../src/architecture-evaluation.js";
+import { generateUniversalArchitectureMutations } from "../src/architecture-check.js";
 
 const fixtureRoot = path.resolve("test/fixtures/arkts-mini");
 
@@ -29,6 +30,8 @@ describe("client evaluation layers", () => {
       expect(report.accuracy.interfaceRecall.value).toBe(1);
       expect(report.architecture.issueRecall.value).toBe(1);
       expect(report.acceptance.architectureIssueRecall).toBe(true);
+      const universal = evaluateProject({ observation: extracted.observation, spec, repositoryRoot: fixtureRoot, groundTruth: truth, incrementalMs: 50, mutations: generateUniversalArchitectureMutations(spec) });
+      expect(universal.architecture.issueRecall.value).toBe(1);
       const incomplete = evaluateProject({ observation: extracted.observation, spec, repositoryRoot: fixtureRoot, incrementalMs: 50 });
       expect(incomplete.compositeScore).toBeNull();
       expect(incomplete.compositeStatus).toBe("not-evaluated");
