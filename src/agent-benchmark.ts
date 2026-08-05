@@ -47,7 +47,7 @@ export function generateAgentBenchmark(spec: ProjectSpec, repositoryRoot: string
   const experimentFile = path.resolve(outputDirectory, `agent-experiment.${spec.repository.id}.json`);
   writeJson(experimentFile, {
     schema: "deveco.specgen-agent-experiment/v1", model: process.env.OPENROUTER_MODEL ?? "SET_OPENROUTER_MODEL",
-    repetitions: 3, outputDirectory: `./agent-results/${spec.repository.id}`,
+    repetitions: 1, outputDirectory: `./agent-results/${spec.repository.id}`,
     agent: {
       command: process.execPath,
       args: [path.resolve("dist/src/cli.js"), "openrouter-agent"],
