@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Observation, RepoConfig, SpikeConfig } from "./model.js";
 import type { ProjectSpec, ArchitectureConstraint } from "./project-spec-schema.js";
 import { ArchitectureConstraintSchema } from "./project-spec-schema.js";
-import { ArchitectureMutationSchema, EvaluationGroundTruthSchema, type ArchitectureMutation, type EvaluationGroundTruth } from "./evaluation-schema.js";
+import { ArchitectureMutationSchema, EvaluationGroundTruthSchema, type ArchitectureMutation, type EvaluationGroundTruth, type EvaluationReport } from "./evaluation-schema.js";
 import { evaluateProject } from "./evaluation.js";
 import { generateArchitectureMutations, generateUniversalArchitectureMutations } from "./architecture-check.js";
 import { generateSilverGroundTruth } from "./silver-ground-truth.js";
@@ -12,10 +12,21 @@ import { readJson } from "./io.js";
 import { writeJson } from "./io.js";
 import { convertLegacyGroundTruth } from "./ground-truth.js";
 
-export function evaluateRepositoryArtifacts(repo: RepoConfig, config: SpikeConfig, evaluationDirectory = "./evaluation"): void {
+export interface ArtifactEvaluationOptions {
+  independentOracle?: boolean;
+}
+
+export function evaluateRepositoryArtifacts(
+  repo: RepoConfig,
+  config: SpikeConfig,
+  evaluationDirectory = "./evaluation",
+  options: ArtifactEvaluationOptions = {}
+): EvaluationReport {
   const output = path.join(config.outputDirectory, repo.id);
   const observation = required<Observation>(path.join(output, "codegraph.observation.json"));
-  const treeSitter = readJson<Observation>(path.join(output, "tree-sitter.observation.json"));
+  const treeSitter = options.independentOracle
+    ? readJson<Observation>(path.join(output, "tree-sitter.observation.json"))
+    : undefined;
   const spec = required<ProjectSpec>(path.join(output, "project-spec", "project-spec.json"));
   const incremental = readJson<{ medianMs: number }>(path.join(output, "incremental.json"));
   const status = readJson<{ crashed: boolean }>(path.join(output, "run-status.json"));
@@ -33,6 +44,7 @@ export function evaluateRepositoryArtifacts(repo: RepoConfig, config: SpikeConfi
   });
   writeEvaluationReport(output, report);
   console.log(`${repo.id}: structural ${(report.structuralScore * 100).toFixed(1)}%; overall ${report.compositeScore === null ? "not evaluated" : `${(report.compositeScore * 100).toFixed(1)}%`}; architecture recall ${format(report.architecture.issueRecall.value)}`);
+  return report;
 }
 
 function optionalGroundTruth(id: string, root: string, output: string, codeGraph: Observation, treeSitter: Observation | undefined, repositoryRoot: string): EvaluationGroundTruth | undefined {

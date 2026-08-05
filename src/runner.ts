@@ -12,7 +12,12 @@ import { writeProjectSpecArtifacts } from "./project-spec-artifacts.js";
 import { queryProjectSpec, type DisclosureQuery } from "./project-spec-query.js";
 import type { ProjectSpec } from "./project-spec-schema.js";
 
-export async function runRepository(repo: RepoConfig, config: SpikeConfig): Promise<void> {
+export interface RepositoryRunOptions {
+  /** Run the independent ArkTS parser used only as an evaluation oracle. */
+  independentOracle?: boolean;
+}
+
+export async function runRepository(repo: RepoConfig, config: SpikeConfig, options: RepositoryRunOptions = {}): Promise<void> {
   const output = path.join(config.outputDirectory, repo.id); fs.mkdirSync(output, { recursive: true });
   console.log(`\n[${repo.size}] ${repo.id}: ${repo.path}`); let crashed = false;
   let openGraph: Awaited<ReturnType<typeof extractCodeGraph>>["graph"] | undefined;
@@ -21,8 +26,13 @@ export async function runRepository(repo: RepoConfig, config: SpikeConfig): Prom
     const { observation: codegraph, graph } = await extractCodeGraph(repo.id, repo.path);
     openGraph = graph;
     writeJson(path.join(output, "codegraph.observation.json"), codegraph);
-    console.log("  Parsing ArkTS independently with Tree-sitter...");
-    const tree = await extractTreeSitter(repo.id, repo.path); writeJson(path.join(output, "tree-sitter.observation.json"), tree);
+    if (!options.independentOracle) {
+      for (const generated of ["tree-sitter.observation.json", "silver-ground-truth.json"])
+        fs.rmSync(path.join(output, generated), { force: true });
+    }
+    const tree = options.independentOracle
+      ? await extractIndependentOracle(repo.id, repo.path, output)
+      : undefined;
     console.log("  Measuring incremental CodeGraph sync...");
     const incremental = await benchmarkIncremental(graph, repo.path, config.incremental.trials, config.incremental.timeoutMs);
     writeJson(path.join(output, "incremental.json"), incremental);
@@ -32,17 +42,18 @@ export async function runRepository(repo: RepoConfig, config: SpikeConfig): Prom
     const projectSpecArtifacts = writeProjectSpecArtifacts(output, projectSpec);
     const truth = reviewedTruth(readJson<Observation>(path.join(output, "ground-truth.v2.json")));
     const codegraphMetrics = calculateMetrics(codegraph, truth, truth?.review.sampledFiles ?? manifest.selectedFiles);
-    const topologyAgreement = agreement(tree, codegraph, tree.candidateFiles, false);
-    const resolutionAwareAgreement = agreement(tree, codegraph, tree.candidateFiles, true);
+    const topologyAgreement = tree ? agreement(tree, codegraph, tree.candidateFiles, false) : undefined;
+    const resolutionAwareAgreement = tree ? agreement(tree, codegraph, tree.candidateFiles, true) : undefined;
     const report = {
       schemaVersion: 4, repository: repo,
       groundTruthStatus: truth ? "reviewed" : "missing-or-unreviewed",
       codegraph: { metrics: codegraphMetrics, acceptance: acceptance(codegraphMetrics, incremental.medianMs, config.acceptance), summary: summarize(codegraph), diagnostics: codegraph.diagnostics },
-      treeSitterArkts: {
-        summary: summarize(tree), topologyAgreementWithCodeGraph: topologyAgreement,
+      independentOracle: tree ? {
+        status: "completed", engine: "tree-sitter", summary: summarize(tree),
+        topologyAgreementWithCodeGraph: topologyAgreement,
         resolutionAwareAgreementWithCodeGraph: resolutionAwareAgreement,
-        agreementWithCodeGraph: resolutionAwareAgreement, diagnostics: tree.diagnostics
-      },
+        diagnostics: tree.diagnostics
+      } : { status: "not-requested", engine: "tree-sitter", note: "Independent parser comparison is evaluation-only and was not run." },
       projectSpec: projectSpecArtifacts, incremental, sample: manifest, generatedAt: new Date().toISOString()
     };
     writeJson(path.join(output, "report.json"), report);
@@ -73,25 +84,33 @@ export function evaluateExisting(repo: RepoConfig, config: SpikeConfig): void {
   const tree = readJson<Observation>(path.join(output, "tree-sitter.observation.json"));
   const incremental = readJson<{ medianMs: number }>(path.join(output, "incremental.json"));
   const manifest = readJson<SampleManifest>(path.join(output, "sample-manifest.json"));
-  if (!codegraph || !tree || !incremental || !manifest) { console.log(`Skipped ${repo.id}: missing run artifacts`); return; }
+  if (!codegraph || !incremental || !manifest) { console.log(`Skipped ${repo.id}: missing run artifacts`); return; }
   const truth = reviewedTruth(truthRaw); const metrics = calculateMetrics(codegraph, truth, truth?.review.sampledFiles ?? manifest.selectedFiles);
   const projectSpec = buildProjectSpec(codegraph, repo.path); const projectSpecArtifacts = writeProjectSpecArtifacts(output, projectSpec);
-  const topologyAgreement = agreement(tree, codegraph, tree.candidateFiles, false);
-  const resolutionAwareAgreement = agreement(tree, codegraph, tree.candidateFiles, true);
+  const topologyAgreement = tree ? agreement(tree, codegraph, tree.candidateFiles, false) : undefined;
+  const resolutionAwareAgreement = tree ? agreement(tree, codegraph, tree.candidateFiles, true) : undefined;
   const report = {
     schemaVersion: 4, repository: repo, groundTruthStatus: truth ? "reviewed" : truthRaw ? "unreviewed" : "missing",
     codegraph: { metrics, acceptance: acceptance(metrics, incremental.medianMs, config.acceptance), summary: summarize(codegraph), diagnostics: codegraph.diagnostics },
-    treeSitterArkts: {
-      summary: summarize(tree), topologyAgreementWithCodeGraph: topologyAgreement,
+    independentOracle: tree ? {
+      status: "completed", engine: "tree-sitter", summary: summarize(tree),
+      topologyAgreementWithCodeGraph: topologyAgreement,
       resolutionAwareAgreementWithCodeGraph: resolutionAwareAgreement,
-      agreementWithCodeGraph: resolutionAwareAgreement, diagnostics: tree.diagnostics
-    },
+      diagnostics: tree.diagnostics
+    } : { status: "not-requested", engine: "tree-sitter", note: "Independent parser comparison is evaluation-only and was not run." },
     projectSpec: projectSpecArtifacts, incremental, sample: manifest, generatedAt: new Date().toISOString()
   };
   writeJson(path.join(output, "report.json"), report); console.log(`${repo.id}: ground truth ${report.groundTruthStatus}; ${JSON.stringify(report.codegraph.acceptance)}`);
 }
 
 function formatCoverage(value: number | null): string { return value === null ? "n/a" : `${(value * 100).toFixed(1)}%`; }
+
+async function extractIndependentOracle(repository: string, repoPath: string, output: string): Promise<Observation> {
+  console.log("  Parsing ArkTS independently with Tree-sitter (optional diagnostic oracle)...");
+  const tree = await extractTreeSitter(repository, repoPath);
+  writeJson(path.join(output, "tree-sitter.observation.json"), tree);
+  return tree;
+}
 
 export function generateProjectSpecExisting(repo: RepoConfig, config: SpikeConfig): void {
   const output = path.join(config.outputDirectory, repo.id);

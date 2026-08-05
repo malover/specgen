@@ -21,7 +21,7 @@ export function generateAgentBenchmark(spec: ProjectSpec, repositoryRoot: string
   const taskFiles: string[] = []; const experimentTasks = []; const baselineArchitectureIssues = checkArchitecture(spec).length;
   for (const item of selected) {
     const module = spec.modules.find(module => module.id === item.moduleId)!;
-    const suffix = stableId(item.id).slice(0, 8); const functionName = `specgenIdentity_${suffix}`;
+    const suffix = stableId(`${spec.repository.id}:${item.id}`).slice(0, 8); const functionName = `specgenIdentity_${suffix}`;
     const task: GeneratedAgentTask = {
       schema: "deveco.specgen-generated-agent-task/v1", id: `task:add-identity:${suffix}`,
       type: "add-exported-identity-helper", moduleId: item.moduleId, interfaceId: item.id,

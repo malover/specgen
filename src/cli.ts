@@ -16,21 +16,40 @@ import { ArchitectureConstraintSchema } from "./project-spec-schema.js";
 import { GeneratedAgentTaskSchema, generateAgentBenchmark, verifyGeneratedAgentTask } from "./agent-benchmark.js";
 import { generateLlmJudgeInput, runLlmJudge } from "./llm-judge.js";
 import { runOpenRouterAgent } from "./openrouter-agent.js";
+import { runFullEvaluation } from "./full-evaluation.js";
 
-const program = new Command().name("arkts-index-spike").description("Evaluate native ArkTS indexing with CodeGraph and direct Tree-sitter");
+const program = new Command().name("specgen").description("Generate and evaluate agent-oriented Project SPEC artifacts");
 const withConfig = (command: Command) => command.option("-c, --config <file>", "configuration file", "spike.config.json");
 
-withConfig(program.command("all").description("index, compare and benchmark all three repositories"))
-  .action(async ({ config: file }) => {
+withConfig(program.command("all").description("index and build Project SPEC for all configured repositories"))
+  .option("--independent-oracle", "also run the optional Tree-sitter diagnostic comparison", false)
+  .action(async ({ config: file, independentOracle }) => {
     const config = loadConfig(file);
-    for (const repo of config.repositories) await runRepository(repo, config);
+    for (const repo of config.repositories) await runRepository(repo, config, { independentOracle });
   });
 
 withConfig(program.command("run").description("run one configured repository")).requiredOption("--repo <id>")
-  .action(async ({ config: file, repo: id }) => {
+  .option("--independent-oracle", "also run the optional Tree-sitter diagnostic comparison", false)
+  .action(async ({ config: file, repo: id, independentOracle }) => {
     const config = loadConfig(file); const repo = config.repositories.find(item => item.id === id);
     if (!repo) throw new Error(`Unknown repository id: ${id}`);
-    await runRepository(repo, config);
+    await runRepository(repo, config, { independentOracle });
+  });
+
+withConfig(program.command("evaluate-full").description("run indexing, Project SPEC, structural quality, architecture mutations, and agent A/B; write one report"))
+  .option("--evaluation-dir <directory>", "evaluation data and generated agent experiments", "./evaluation")
+  .option("--independent-oracle", "include optional Tree-sitter parser agreement diagnostics", false)
+  .option("--skip-agent", "skip the OpenRouter agent A/B stage", false)
+  .option("--agent-tasks <count>", "generated tasks per repository", "1")
+  .option("--agent-repetitions <count>", "baseline/treatment repetitions per task", "3")
+  .action(async ({ config: file, evaluationDir, independentOracle, skipAgent, agentTasks, agentRepetitions }) => {
+    const taskCount = positiveInteger(agentTasks, "--agent-tasks");
+    const repetitions = positiveInteger(agentRepetitions, "--agent-repetitions");
+    const report = await runFullEvaluation(loadConfig(file), {
+      evaluationDirectory: evaluationDir, independentOracle,
+      agentMode: skipAgent ? "skip" : "run", agentTasks: taskCount, agentRepetitions: repetitions
+    });
+    if (report.executiveSummary.repositoriesFailed > 0) process.exitCode = 2;
   });
 
 withConfig(program.command("init-ground-truth").description("seed editable review files from CodeGraph output"))
@@ -42,10 +61,11 @@ withConfig(program.command("evaluate").description("recalculate metrics from rev
 withConfig(program.command("evaluate-quality").description("score structural quality, reviewed accuracy and architecture mutations without reindexing"))
   .option("--evaluation-dir <directory>", "ground truth and architecture cases", "./evaluation")
   .option("--repo <id>", "evaluate one configured repository")
-  .action(({ config: file, evaluationDir, repo: id }) => {
+  .option("--independent-oracle", "use an existing optional Tree-sitter observation as a diagnostic oracle", false)
+  .action(({ config: file, evaluationDir, repo: id, independentOracle }) => {
     const config = loadConfig(file); const repositories = id ? config.repositories.filter(item => item.id === id) : config.repositories;
     if (!repositories.length) throw new Error(`Unknown repository id: ${id}`);
-    repositories.forEach(repo => evaluateRepositoryArtifacts(repo, config, evaluationDir));
+    repositories.forEach(repo => evaluateRepositoryArtifacts(repo, config, evaluationDir, { independentOracle }));
   });
 
 withConfig(program.command("init-architecture-eval").description("create reviewable architecture constraints and mutation cases from current module boundaries"))
@@ -148,3 +168,9 @@ withConfig(program.command("query").description("query Project SPEC with progres
   });
 
 program.parseAsync().catch(error => { console.error(error instanceof Error ? error.stack : error); process.exitCode = 1; });
+
+function positiveInteger(value: string, option: string): number {
+  const parsed = Number.parseInt(value, 10);
+  if (!Number.isSafeInteger(parsed) || parsed < 1) throw new Error(`${option} must be a positive integer.`);
+  return parsed;
+}

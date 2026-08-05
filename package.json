@@ -1,6 +1,6 @@
 {
   "name": "arkts-indexing-spike",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "type": "module",
   "main": "./dist/src/index.js",
@@ -24,6 +24,7 @@
     "init-ground-truth": "tsx src/cli.ts init-ground-truth",
     "evaluate": "tsx src/cli.ts evaluate",
     "evaluate:quality": "tsx src/cli.ts evaluate-quality",
+    "evaluate:full": "npm run build && node dist/src/cli.js evaluate-full",
     "evaluate:agent": "tsx src/cli.ts evaluate-agent",
     "agent:ab": "tsx src/cli.ts run-agent-ab",
     "init:architecture-eval": "tsx src/cli.ts init-architecture-eval",

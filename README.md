@@ -1,10 +1,19 @@
 # SpecGen ProjectSpec Core and Evaluation — OpenHarmony Profile
 
-Version 0.5 adds a repeatable evaluation system to the deterministic ProjectSpec Core. It remains entirely TypeScript and launches no Python runtime, MCP server, or database service.
+Version 0.7 adds a single end-to-end evaluation command and consolidated decision report to the deterministic ProjectSpec Core. It remains entirely TypeScript and launches no Python runtime, MCP server, or database service.
 
-The engine indexes every language CodeGraph supports and then applies an OpenHarmony ecosystem profile for `module.json5`, `build-profile.json5`, `oh-package.json5` and related manifests. ArkTS additionally receives an independent direct Tree-sitter comparison.
+The engine indexes every language CodeGraph supports and then applies an OpenHarmony ecosystem profile for `module.json5`, `build-profile.json5`, `oh-package.json5` and related manifests. The independent direct Tree-sitter comparison is now optional and evaluation-only; it never contributes to the Project SPEC.
 
 The default indexing, Project SPEC and quality-evaluation path makes no LLM calls. OpenRouter is optional for coding-agent A/B experiments and the separately labelled non-authoritative LLM judge.
+
+## What changed in v0.7
+
+- `npm run evaluate:full` runs indexing, Project SPEC generation, coverage and integrity checks, incremental timing, introduced architecture mutations, and agent A/B evaluation.
+- A consolidated `full-evaluation.json` is compact and machine-readable; `full-evaluation.md` is presentation-ready.
+- Every stage is labelled `PASS`, `FAIL`, `BLOCKED`, `SKIPPED`, or `NOT EVALUATED`; missing evidence is never counted as a pass.
+- The report separates deterministic core readiness, introduced-mutation recall, optional parser agreement, and measured agent benefit.
+- Agent A/B tasks and repetitions are configured from the same command.
+- Independent Tree-sitter extraction is no longer part of the default production path. Enable it only with `--independent-oracle`.
 
 ## What changed in v0.6
 
@@ -119,15 +128,58 @@ Edit `spike.config.json`. Example:
 
 ## Run
 
-### Zero-manual-review evaluation
+### One-command full evaluation
 
-This is the normal workflow. You do not need to understand or label ArkTS.
+Set OpenRouter for the agent A/B stage, then run:
+
+```powershell
+$env:OPENROUTER_API_KEY = "<your-key>"
+$env:OPENROUTER_MODEL = "qwen/qwen3.6-35b-a3b"
+$env:HTTPS_PROXY = "http://proxyeurope.huawei.com:8080/"
+$env:HTTP_PROXY = $env:HTTPS_PROXY
+$env:NODE_USE_SYSTEM_CA = "1"
+
+npm run evaluate:full -- --config spike.config.json
+```
+
+The default experiment generates one task per repository and runs three baseline/treatment repetitions. That is six agent runs per repository. Adjust it explicitly:
+
+```powershell
+npm run evaluate:full -- --config spike.config.json --agent-tasks 2 --agent-repetitions 5
+```
+
+For a deterministic, no-LLM run that still performs indexing, Project SPEC, coverage, incremental, and architecture-mutation evaluation:
+
+```powershell
+npm run evaluate:full -- --config spike.config.json --skip-agent
+```
+
+Add the independent parser diagnostic only when investigating extraction differences:
+
+```powershell
+npm run evaluate:full -- --config spike.config.json --skip-agent --independent-oracle
+```
+
+Open these two top-level outputs:
+
+```text
+results-v4/full-evaluation.md
+results-v4/full-evaluation.json
+```
+
+The Markdown report begins with the decision, repository-level gates, introduced-mutation detection, and agent A/B delta. Detailed per-repository artifacts remain available for debugging.
+
+If the key or model is missing, the full command completes deterministic stages and marks agent evaluation `BLOCKED`. It does not pretend the agent test passed.
+
+### Separate evaluation commands
+
+Use these only when rerunning an individual stage. You do not need to understand or label ArkTS.
 
 ```powershell
 # 1. Index repositories and generate Project SPEC artifacts.
 npm run all -- --config spike.config.json
 
-# 2. Generate automatic silver accuracy, universal mutation and structural reports.
+# 2. Generate universal mutation and structural reports.
 npm run evaluate:quality -- --config spike.config.json
 ```
 
@@ -136,23 +188,22 @@ Open these files for each repository:
 ```text
 results-v4/<repo>/evaluation-report.md
 results-v4/<repo>/evaluation-report.json
-results-v4/<repo>/silver-ground-truth.json
 ```
+
+The default run does not create silver ground truth. Add `--independent-oracle` to `all` or `run`, then rerun `evaluate:quality`, if parser-agreement diagnostics are specifically required.
 
 Interpret the report as follows:
 
 | Result | Meaning |
 |---|---|
 | Structural score | Deterministic repository-to-SPEC completeness and integrity |
-| Silver diagnostic composite | Automatic diagnostic summary; not human contractual accuracy |
-| Oracle coverage | Percentage of repository files comparable through the independent Tree-sitter path |
-| Entity/edge agreement | CodeGraph agreement with source-verified Tree-sitter labels |
 | Architecture issue recall | Percentage of automatically seeded known violations detected |
 | Baseline issues | Existing invariant violations found before mutation |
 | Evidence validity | Whether SPEC references resolve to real graph entities, relations and files |
-| `NOT EVALUATED` in human acceptance | Expected when no human oracle exists; automatic diagnostics still ran |
+| Human entity recall/edge precision | `NOT EVALUATED` until reviewed labels are supplied |
+| Optional silver agreement | Parser-difference diagnostic only; not human contractual accuracy |
 
-For a first client demonstration, show structural coverage, oracle coverage, silver agreement, universal architecture recall, incremental time and crash-free status as separate values. Do not rename silver agreement to human precision/recall.
+For a first client demonstration, show structural coverage, universal architecture recall, incremental time, crash-free status, and agent A/B delta as separate values. If the optional oracle is run, never rename parser agreement to human precision or recall.
 
 All repositories:
 
@@ -171,7 +222,7 @@ Each repository produces:
 ```text
 results-v4/<repo>/
 ├── codegraph.observation.json
-├── tree-sitter.observation.json
+├── tree-sitter.observation.json  # only with --independent-oracle
 ├── incremental.json
 ├── sample-manifest.json
 ├── report.json
@@ -190,7 +241,7 @@ results-v4/<repo>/
 └── crash.json                    # failures only
 ```
 
-The CodeGraph observation is the complete mixed-language graph. The Tree-sitter observation contains only the independent ArkTS baseline. `report.json` includes their ArkTS agreement, but labels it as agreement rather than ground-truth accuracy.
+The CodeGraph observation is the complete mixed-language graph. When requested, the Tree-sitter observation contains only the independent ArkTS baseline. `report.json` labels their comparison as parser agreement rather than ground-truth accuracy.
 
 ## ProjectSpec without reindexing
 

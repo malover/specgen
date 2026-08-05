@@ -30,3 +30,5 @@ export { GeneratedAgentTaskSchema, generateAgentBenchmark, verifyGeneratedAgentT
 export type { GeneratedAgentTask } from "./agent-benchmark.js";
 export { LlmJudgeInputSchema, generateLlmJudgeInput, parseJudgeResponse, runLlmJudge } from "./llm-judge.js";
 export { runOpenRouterAgent } from "./openrouter-agent.js";
+export { FULL_EVALUATION_SCHEMA, assembleFullEvaluationReport, fullEvaluationMarkdown, runFullEvaluation } from "./full-evaluation.js";
+export type { FullEvaluationOptions, FullEvaluationReport, RepositoryFullEvaluation } from "./full-evaluation.js";
